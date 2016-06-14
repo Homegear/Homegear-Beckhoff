@@ -53,7 +53,6 @@ void MainInterface::startListening()
 	{
 		stopListening();
 		init();
-		_stopped = false;
 		_stopCallbackThread = false;
 		if(_settings->listenThreadPriority > -1) _bl->threadManager.start(_listenThread, true, _settings->listenThreadPriority, _settings->listenThreadPolicy, &MainInterface::listen, this);
 		else _bl->threadManager.start(_listenThread, true, &MainInterface::listen, this);
@@ -116,7 +115,17 @@ void MainInterface::init()
 			modbus_free(_modbus);
 			_modbus = nullptr;
 		}
+		if(_settings->host.empty())
+		{
+			_out.printError("Error: Could not connect to BK90x0: Please set \"host\" in \"beckhoffbk90x0.conf\".");
+			return;
+		}
 		_modbus = modbus_new_tcp(_settings->host.c_str(), BaseLib::Math::getNumber(_settings->port));
+		if(!_modbus)
+		{
+			_out.printError("Error: Could not connect to BK90x0: Could not create modbus handle. Are hostname and port set correctly?");
+			return;
+		}
 		int result = modbus_connect(_modbus);
 		if(result == -1)
 		{
@@ -182,6 +191,7 @@ void MainInterface::init()
         _writeBuffer.resize(outputRegisters, 0);
 
         _out.printInfo("Info: Connected to BK90x0. ID: " + std::string(_bk9000Info.busCouplerId, 12) + ", analog input bits: " + std::to_string(_bk9000Info.analogInputBits) + ", analog output bits: " + std::to_string(_bk9000Info.analogOutputBits) + ", digital input bits: " + std::to_string(_bk9000Info.digitalInputBits) + ", digital output bits: " + std::to_string(_bk9000Info.digitalOutputBits));
+        _stopped = false;
     }
     catch(const std::exception& ex)
     {

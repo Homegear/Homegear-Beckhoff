@@ -101,7 +101,7 @@ void MyCentral::loadPeers()
 		for(BaseLib::Database::DataTable::iterator row = rows->begin(); row != rows->end(); ++row)
 		{
 			int32_t peerID = row->second.at(0)->intValue;
-			GD::out.printMessage("Loading EasyLed peer " + std::to_string(peerID));
+			GD::out.printMessage("Loading Beckhoff BK90x0 peer " + std::to_string(peerID));
 			std::shared_ptr<MyPeer> peer(new MyPeer(peerID, row->second.at(2)->intValue, row->second.at(3)->textValue, _deviceId, this));
 			if(!peer->load(this)) continue;
 			if(!peer->getRpcDevice()) continue;
@@ -296,7 +296,7 @@ void MyCentral::savePeers(bool full)
 		std::lock_guard<std::mutex> peersGuard(_peersMutex);
 		for(std::map<uint64_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator i = _peersById.begin(); i != _peersById.end(); ++i)
 		{
-			GD::out.printInfo("Info: Saving EasyLed peer " + std::to_string(i->second->getID()));
+			GD::out.printInfo("Info: Saving Beckhoff BK90x0 peer " + std::to_string(i->second->getID()));
 			i->second->save(full, full, full);
 		}
 	}
@@ -340,9 +340,10 @@ void MyCentral::deletePeer(uint64_t id)
 		_peersMutex.lock();
 		if(_peersBySerial.find(peer->getSerialNumber()) != _peersBySerial.end()) _peersBySerial.erase(peer->getSerialNumber());
 		if(_peersById.find(id) != _peersById.end()) _peersById.erase(id);
-		if(_peers.find(peer->getAddress()) != _peers.end()) _peers.erase(peer->getAddress());
+		std::unordered_map<int32_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator peerIterator = _peers.find(peer->getAddress());
+		if(peerIterator != _peers.end() && peerIterator->second->getID() == id) _peers.erase(peerIterator);
 		_peersMutex.unlock();
-		GD::out.printMessage("Removed EasyLed peer " + std::to_string(peer->getID()));
+		GD::out.printMessage("Removed Beckhoff BK90x0 peer " + std::to_string(peer->getID()));
 	}
 	catch(const std::exception& ex)
     {
@@ -434,7 +435,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 				stringStream << "  SERIAL:\t\tThe 10 to 12 character long serial number of the peer to add. Example: VBF01020304" << std::endl;
 				return stringStream.str();
 			}
-			if(peerExists(serial) || peerExists(address)) stringStream << "This peer is already paired to this central." << std::endl;
+			if(peerExists(serial)) stringStream << "A peer with this serial number is already paired to this central." << std::endl;
 			else
 			{
 				std::shared_ptr<MyPeer> peer = createPeer(deviceType, address, serial, false);

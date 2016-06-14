@@ -580,6 +580,21 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 
 				value.reset(new BaseLib::Variable(isSigned ? (int32_t)(int16_t)packet[i] : (uint32_t)packet[i]));
 				_binaryEncoder->encodeResponse(value, parameter->data);
+
+				if(!value) continue;
+
+				if(!valueKeys[channel] || !rpcValues[channel])
+				{
+					valueKeys[channel].reset(new std::vector<std::string>());
+					rpcValues[channel].reset(new std::vector<PVariable>());
+				}
+
+				if(parameter->databaseID > 0) saveParameter(parameter->databaseID, parameter->data);
+				else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, name, parameter->data);
+				if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter->data) + ".");
+
+				valueKeys[channel]->push_back(name);
+				rpcValues[channel]->push_back(value);
 			}
 			else
 			{
@@ -598,23 +613,23 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 
 					value.reset(new BaseLib::Variable((bool)bitValue));
 					_binaryEncoder->encodeResponse(value, parameter->data);
+
+					if(!value) continue;
+
+					if(!valueKeys[channel] || !rpcValues[channel])
+					{
+						valueKeys[channel].reset(new std::vector<std::string>());
+						rpcValues[channel].reset(new std::vector<PVariable>());
+					}
+
+					if(parameter->databaseID > 0) saveParameter(parameter->databaseID, parameter->data);
+					else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, name, parameter->data);
+					if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter->data) + ".");
+
+					valueKeys[channel]->push_back(name);
+					rpcValues[channel]->push_back(value);
 				}
 			}
-
-			if(channel == -1 || !value) continue;
-
-			if(!valueKeys[channel] || !rpcValues[channel])
-			{
-				valueKeys[channel].reset(new std::vector<std::string>());
-				rpcValues[channel].reset(new std::vector<PVariable>());
-			}
-
-			if(parameter->databaseID > 0) saveParameter(parameter->databaseID, parameter->data);
-			else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, name, parameter->data);
-			if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter->data) + ".");
-
-			valueKeys[channel]->push_back(name);
-			rpcValues[channel]->push_back(value);
 		}
 
 		if(!rpcValues.empty())
