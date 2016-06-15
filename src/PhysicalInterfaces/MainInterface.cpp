@@ -220,35 +220,52 @@ void MainInterface::listen()
 
         while(!_stopCallbackThread)
         {
-        	if(_stopped || !_modbus)
+        	try
         	{
-        		init();
-        		std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        		if(_stopCallbackThread) return;
-        		continue;
-        	}
+				if(_stopped || !_modbus || _readBuffer.empty())
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+					init();
+					if(_stopCallbackThread) return;
+					continue;
+				}
 
-        	if(_outputsEnabled) result = modbus_write_and_read_registers(_modbus, 0x800, _writeBuffer.size(), &_writeBuffer.at(0), 0x0, readBuffer.size(), &readBuffer.at(0));
-        	else result = modbus_read_registers(_modbus, 0x0, _readBuffer.size(), &readBuffer.at(0));
+				if(_readBuffer.empty()) continue;
 
-        	if(result == -1)
-        	{
-        		_stopped = true;
-        		continue;
-        	}
+				if(_outputsEnabled && !_writeBuffer.empty()) result = modbus_write_and_read_registers(_modbus, 0x800, _writeBuffer.size(), &_writeBuffer.at(0), 0x0, readBuffer.size(), &readBuffer.at(0));
+				else result = modbus_read_registers(_modbus, 0x0, _readBuffer.size(), &readBuffer.at(0));
 
-        	if(readBuffer != _readBuffer)
-        	{
-        		_readBuffer = readBuffer;
-        		std::shared_ptr<MyPacket> packet(new MyPacket(0, _readBuffer.size() * 8 - 1, readBuffer));
-        		raisePacketReceived(packet);
-        	}
+				if(result == -1)
+				{
+					_stopped = true;
+					continue;
+				}
 
-			endTime = BaseLib::HelperFunctions::getTimeMicroseconds();
-			timeToSleep = (_settings->interval * 1000) - (endTime - startTime);
-			if(timeToSleep < 500) timeToSleep = 500;
-        	std::this_thread::sleep_for(std::chrono::microseconds(timeToSleep));
-        	startTime = endTime;
+				if(readBuffer != _readBuffer)
+				{
+					_readBuffer = readBuffer;
+					std::shared_ptr<MyPacket> packet(new MyPacket(0, _readBuffer.size() * 8 - 1, readBuffer));
+					raisePacketReceived(packet);
+				}
+
+				endTime = BaseLib::HelperFunctions::getTimeMicroseconds();
+				timeToSleep = (_settings->interval * 1000) - (endTime - startTime);
+				if(timeToSleep < 500) timeToSleep = 500;
+				std::this_thread::sleep_for(std::chrono::microseconds(timeToSleep));
+				startTime = endTime;
+			}
+			catch(const std::exception& ex)
+			{
+				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+			}
+			catch(BaseLib::Exception& ex)
+			{
+				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+			}
+			catch(...)
+			{
+				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+			}
         }
     }
     catch(const std::exception& ex)
