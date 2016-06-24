@@ -534,7 +534,7 @@ void MyPeer::loadVariables(BaseLib::Systems::ICentral* central, std::shared_ptr<
 			switch(row->second.at(2)->intValue)
 			{
 			case 5:
-				unserializeStates(*row->second.at(5)->binaryValue);
+				if(row->second.at(5)->binaryValue) unserializeStates(*row->second.at(5)->binaryValue);
 				break;
 			case 19:
 				_physicalInterfaceId = row->second.at(4)->textValue;
