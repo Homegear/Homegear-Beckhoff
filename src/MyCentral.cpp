@@ -54,7 +54,11 @@ void MyCentral::dispose(bool wait)
 		if(_disposing) return;
 		_disposing = true;
 		GD::out.printDebug("Removing device " + std::to_string(_deviceId) + " from physical device's event queue...");
-		if(GD::physicalInterface) GD::physicalInterface->removeEventHandler(_physicalInterfaceEventhandler);
+		for(std::map<std::string, std::shared_ptr<MainInterface>>::iterator i = GD::physicalInterfaces.begin(); i != GD::physicalInterfaces.end(); ++i)
+		{
+			//Just to make sure cycle through all physical devices. If event handler is not removed => segfault
+			i->second->removeEventHandler(_physicalInterfaceEventhandler);
+		}
 	}
     catch(const std::exception& ex)
     {
@@ -77,7 +81,10 @@ void MyCentral::init()
 		if(_initialized) return; //Prevent running init two times
 		_initialized = true;
 
-		if(GD::physicalInterface) _physicalInterfaceEventhandler = GD::physicalInterface->addEventHandler((BaseLib::Systems::IPhysicalInterface::IPhysicalInterfaceEventSink*)this);
+		for(std::map<std::string, std::shared_ptr<MainInterface>>::iterator i = GD::physicalInterfaces.begin(); i != GD::physicalInterfaces.end(); ++i)
+		{
+			i->second->addEventHandler((BaseLib::Systems::IPhysicalInterface::IPhysicalInterfaceEventSink*)this);
+		}
 	}
 	catch(const std::exception& ex)
 	{
@@ -110,7 +117,10 @@ void MyCentral::loadPeers()
 			_peersById[peerID] = peer;
 			_peers[peer->getAddress()] = peer;
 		}
-		GD::physicalInterface->enableOutputs();
+		for(std::map<std::string, std::shared_ptr<MainInterface>>::iterator i = GD::physicalInterfaces.begin(); i != GD::physicalInterfaces.end(); ++i)
+		{
+			i->second->enableOutputs();
+		}
 	}
 	catch(const std::exception& ex)
     {
@@ -222,7 +232,7 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 			for(std::map<uint64_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator i = _peersById.begin(); i != _peersById.end(); ++i)
 			{
 				std::shared_ptr<MyPeer> peer(std::dynamic_pointer_cast<MyPeer>(i->second));
-				if(peer->isOutputDevice()) continue;
+				if(peer->isOutputDevice() || senderID != peer->getPhysicalInterfaceId()) continue;
 				peers.push_back(peer);
 			}
 		}
@@ -238,7 +248,7 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 		std::vector<uint16_t> destinationData;
 		for(std::vector<std::shared_ptr<MyPeer>>::iterator i = peers.begin(); i != peers.end(); ++i)
 		{
-			startBit = (*i)->getAddress();
+			startBit = (*i)->getAddress() + ((*i)->isAnalog() ? 0 : (*i)->getPhysicalInterface()->digitalInputOffset());
 			endBit = startBit + (*i)->getBitSize() - 1;
 			offset = startBit % 16;
 			currentSourceByte = startBit / 16;
@@ -391,6 +401,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 		}
 		if(command.compare(0, 12, "peers create") == 0 || command.compare(0, 2, "pc") == 0)
 		{
+			std::string interfaceId;
 			int32_t deviceType = 0;
 			int32_t address = 0;
 			std::string serial;
@@ -409,15 +420,19 @@ std::string MyCentral::handleCliCommand(std::string command)
 				else if(index == 1 + offset)
 				{
 					if(element == "help") break;
+					interfaceId = element;
+				}
+				else if(index == 2 + offset)
+				{
 					int32_t temp = BaseLib::Math::getNumber(element, true);
 					if(temp == 0) return "Invalid device type. Device type has to be provided in hexadecimal format.\n";
 					deviceType = temp;
 				}
-				else if(index == 2 + offset)
+				else if(index == 3 + offset)
 				{
 					address = BaseLib::Math::getNumber(element, true);
 				}
-				else if(index == 3 + offset)
+				else if(index == 4 + offset)
 				{
 					if(element.length() < 10) return "Invalid serial number. Please provide a serial number with at least 10 characters.\n";
 					else if(element.length() > 12) return "Invalid serial number. Please provide a serial number with a maximum of 12 characters.\n";
@@ -425,14 +440,15 @@ std::string MyCentral::handleCliCommand(std::string command)
 				}
 				index++;
 			}
-			if(index < 4 + offset)
+			if(index < 5 + offset)
 			{
 				stringStream << "Description: This command creates a new peer." << std::endl;
-				stringStream << "Usage: peers add TYPE ADDRESS SERIAL" << std::endl << std::endl;
+				stringStream << "Usage: peers add INTERFACE TYPE ADDRESS SERIAL" << std::endl << std::endl;
 				stringStream << "Parameters:" << std::endl;
-				stringStream << "  TYPE:\t\tThe 2 byte hexadecimal device type. Example: 0x4001" << std::endl;
-				stringStream << "  ADDRESS:\t\tThe 4 byte IP address. Example: 0xC0A8009B" << std::endl;
-				stringStream << "  SERIAL:\t\tThe 10 to 12 character long serial number of the peer to add. Example: VBF01020304" << std::endl;
+				stringStream << "  INTERFACE: The id of the interface to associate the new device to as defined in the familie's configuration file." << std::endl;
+				stringStream << "  TYPE:      The 2 byte hexadecimal device type. Example: 0x4001" << std::endl;
+				stringStream << "  ADDRESS:   The 4 byte IP address. Example: 0xC0A8009B" << std::endl;
+				stringStream << "  SERIAL:    The 10 to 12 character long serial number of the peer to add. Example: VBF01020304" << std::endl;
 				return stringStream.str();
 			}
 			if(peerExists(serial)) stringStream << "A peer with this serial number is already paired to this central." << std::endl;
@@ -447,6 +463,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 					_peersMutex.unlock();
 					peer->save(true, true, false);
 					peer->initializeCentralConfig();
+					peer->setPhysicalInterfaceId(interfaceId);
 					_peersMutex.lock();
 					_peers[peer->getAddress()] = peer;
 					_peersById[peer->getID()] = peer;
@@ -818,7 +835,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 			stringStream << "Sending packet " << BaseLib::HelperFunctions::getHexString(bytes) << std::endl;
 
 			std::shared_ptr<MyPacket> packet(new MyPacket(startBit, endBit, data));
-			GD::physicalInterface->sendPacket(packet);
+			GD::defaultPhysicalInterface->sendPacket(packet);
 
 			return stringStream.str();
 		}
@@ -893,7 +910,7 @@ void MyCentral::updatePeerAddress(uint64_t peerId, int32_t oldAddress, int32_t n
 	}
 }
 
-PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t deviceType, std::string serialNumber, int32_t address, int32_t firmwareVersion)
+PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t deviceType, std::string serialNumber, int32_t address, int32_t firmwareVersion, std::string interfaceId)
 {
 	try
 	{
@@ -908,6 +925,7 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 			peer->save(true, true, false);
 			peer->initializeCentralConfig();
 			peer->setAddress(address); //Needs to be set again, so it is saved to CONFIG_PARAMETER IP_ADDRESS
+			peer->setPhysicalInterfaceId(interfaceId);
 			_peersMutex.lock();
 			_peers[peer->getAddress()] = peer;
 			_peersById[peer->getID()] = peer;
@@ -1095,6 +1113,29 @@ PVariable MyCentral::putParamset(BaseLib::PRpcClientInfo clientInfo, uint64_t pe
 		std::shared_ptr<MyPeer> peer(getPeer(peerID));
 		if(peer) return peer->putParamset(clientInfo, channel, type, remoteID, remoteChannel, paramset);
 		return Variable::createError(-2, "Unknown device.");
+	}
+	catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(BaseLib::Exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(...)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    return Variable::createError(-32500, "Unknown application error.");
+}
+
+PVariable MyCentral::setInterface(BaseLib::PRpcClientInfo clientInfo, uint64_t peerId, std::string interfaceId)
+{
+	try
+	{
+		std::shared_ptr<MyPeer> peer(getPeer(peerId));
+		if(!peer) return Variable::createError(-2, "Unknown device.");
+		return peer->setInterface(clientInfo, interfaceId);
 	}
 	catch(const std::exception& ex)
     {

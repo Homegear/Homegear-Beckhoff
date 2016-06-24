@@ -231,7 +231,9 @@ void MainInterface::listen()
 				}
 
 				if(_readBuffer.empty()) continue;
+				if(readBuffer.size() != _readBuffer.size()) readBuffer.resize(_readBuffer.size(), 0);
 
+				std::cerr << 'W' << BaseLib::HelperFunctions::getHexString(_writeBuffer) << std::endl;
 				if(_outputsEnabled && !_writeBuffer.empty()) result = modbus_write_and_read_registers(_modbus, 0x800, _writeBuffer.size(), &_writeBuffer.at(0), 0x0, readBuffer.size(), &readBuffer.at(0));
 				else result = modbus_read_registers(_modbus, 0x0, _readBuffer.size(), &readBuffer.at(0));
 
@@ -241,9 +243,10 @@ void MainInterface::listen()
 					continue;
 				}
 
-				if(readBuffer != _readBuffer)
+				if(!std::equal(readBuffer.begin(), readBuffer.end(), _readBuffer.begin()))
 				{
 					_readBuffer = readBuffer;
+					std::cerr << BaseLib::HelperFunctions::getHexString(readBuffer) << std::endl;
 					std::shared_ptr<MyPacket> packet(new MyPacket(0, _readBuffer.size() * 8 - 1, readBuffer));
 					raisePacketReceived(packet);
 				}
@@ -293,6 +296,7 @@ void MainInterface::setOutputData(std::shared_ptr<MyPacket> packet)
 		int32_t startBit = packet->getStartBit() % 16;
 		int32_t endBit = 15;
 		std::vector<uint16_t>& data = packet->getData();
+		if(data.empty()) return;
 		int16_t bitValue = 0;
 		int32_t dataRegisterPos = 0;
 		int32_t dataBitPos = 0;
