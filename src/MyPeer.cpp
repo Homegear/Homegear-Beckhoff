@@ -373,13 +373,13 @@ int32_t MyPeer::getStorageSize()
 		for(Functions::iterator i = _rpcDevice->functions.begin(); i != _rpcDevice->functions.end(); ++i)
 		{
 			if(i->second->variablesId == "digital_output_valueset" || i->second->variablesId == "digital_input_valueset") bitSize++;
-			else if(i->second->variablesId == "analog_output_valueset" || i->second->variablesId == "analog_input_valueset")
+			else if(i->second->variablesId.compare(0, 22, "analog_output_valueset") == 0 || i->second->variablesId.compare(0, 21, "analog_input_valueset") == 0)
 			{
 				PParameter parameter = i->second->variables->getParameter("LEVEL");
 				if(!parameter) continue;
-				if(parameter->logical->type != BaseLib::DeviceDescription::ILogical::Type::tInteger) continue;
-				LogicalInteger* levelParameter = (LogicalInteger*)parameter->logical.get();
-				uint32_t range = levelParameter->maximumValue + (levelParameter->minimumValue * -1);
+				if(parameter->logical->type != BaseLib::DeviceDescription::ILogical::Type::tFloat) continue;
+				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->logical.get();
+				uint32_t range = (int32_t)levelParameter->maximumValue + ((int32_t)levelParameter->minimumValue * -1);
 				while(range)
 				{
 					range = range >> 1;
@@ -419,7 +419,7 @@ bool MyPeer::isAnalog()
 		if(!_rpcDevice) return false;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return false;
-		return functionIterator->second->variablesId == "analog_output_valueset" || functionIterator->second->variablesId == "analog_input_valueset";
+		return functionIterator->second->variablesId == "analog_output_valueset" || functionIterator->second->variablesId == "analog_output_valueset_1" || functionIterator->second->variablesId == "analog_input_valueset" || functionIterator->second->variablesId == "analog_input_valueset_1";
 	}
 	catch(const std::exception& ex)
     {
@@ -436,6 +436,89 @@ bool MyPeer::isAnalog()
     return false;
 }
 
+void MyPeer::setPhysicalInterfaceId(std::string id)
+{
+	if(id.empty() || (GD::physicalInterfaces.find(id) != GD::physicalInterfaces.end() && GD::physicalInterfaces.at(id)))
+	{
+		_physicalInterfaceId = id;
+		setPhysicalInterface(id.empty() ? GD::defaultPhysicalInterface : GD::physicalInterfaces.at(_physicalInterfaceId));
+		saveVariable(19, _physicalInterfaceId);
+	}
+}
+
+void MyPeer::setPhysicalInterface(std::shared_ptr<MainInterface> interface)
+{
+	try
+	{
+		if(!interface) return;
+		_physicalInterface = interface;
+	}
+	catch(const std::exception& ex)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(BaseLib::Exception& ex)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(...)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+}
+
+std::vector<char> MyPeer::serializeStates()
+{
+	try
+	{
+		std::vector<char> states;
+		states.reserve(_states.size() * 2);
+		for(std::vector<uint16_t>::iterator i = _states.begin(); i != _states.end(); ++i)
+		{
+			states.push_back(*i >> 8);
+			states.push_back(*i & 0xFF);
+		}
+		return states;
+	}
+	catch(const std::exception& ex)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(BaseLib::Exception& ex)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(...)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    return std::vector<char>();
+}
+
+void MyPeer::unserializeStates(std::vector<char>& data)
+{
+	try
+	{
+		_states.resize(data.size() / 2, 0);
+		for(uint32_t i = 0; i < data.size(); i += 2)
+		{
+			_states.at(i / 2) = (((uint16_t)(uint8_t)data.at(i)) << 8) | ((uint16_t)(uint8_t)data.at(i + 1));
+		}
+	}
+	catch(const std::exception& ex)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(BaseLib::Exception& ex)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(...)
+    {
+    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+}
+
 void MyPeer::loadVariables(BaseLib::Systems::ICentral* central, std::shared_ptr<BaseLib::Database::DataTable>& rows)
 {
 	try
@@ -446,22 +529,20 @@ void MyPeer::loadVariables(BaseLib::Systems::ICentral* central, std::shared_ptr<
 		_rpcDevice = GD::family->getRpcDevices()->find(_deviceType, _firmwareVersion, -1);
 		if(!_rpcDevice) return;
 
-		uint64_t states = 0;
 		for(BaseLib::Database::DataTable::iterator row = rows->begin(); row != rows->end(); ++row)
 		{
 			switch(row->second.at(2)->intValue)
 			{
 			case 5:
-				states = row->second.at(3)->intValue;
+				if(row->second.at(5)->binaryValue) unserializeStates(*row->second.at(5)->binaryValue);
+				break;
+			case 19:
+				_physicalInterfaceId = row->second.at(4)->textValue;
+				if(!_physicalInterfaceId.empty() && GD::physicalInterfaces.find(_physicalInterfaceId) != GD::physicalInterfaces.end()) setPhysicalInterface(GD::physicalInterfaces.at(_physicalInterfaceId));
 				break;
 			}
 		}
-
-		_states.resize(getStorageSize(), 0);
-		for(uint32_t i = 0; i < _states.size(); i++)
-		{
-			_states[i] = (states >> (i * 16)) & 0xFFFF;
-		}
+		if(!_physicalInterface) _physicalInterface = GD::defaultPhysicalInterface;
 	}
 	catch(const std::exception& ex)
     {
@@ -483,13 +564,9 @@ void MyPeer::saveVariables()
 	{
 		if(_peerID == 0) return;
 		Peer::saveVariables();
-		int64_t states = 0;
-		for(uint32_t i = 0; i < _states.size(); i++)
-		{
-			if(i >= 4) break;
-			states |= _states[i] << (i * 16);
-		}
+		std::vector<char> states = serializeStates();
 		saveVariable(5, states);
+		saveVariable(19, _physicalInterfaceId);
 	}
 	catch(const std::exception& ex)
     {
@@ -525,8 +602,47 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 		serviceMessages.reset(new BaseLib::Systems::ServiceMessages(_bl, _peerID, _serialNumber, this));
 		serviceMessages->load();
 
-		std::shared_ptr<MyPacket> packet(new MyPacket(_address, _address + ((_states.size() - 1) * 16) + 15, _states));
-		GD::physicalInterface->setOutputData(packet);
+		if(!_states.empty())
+		{
+			std::shared_ptr<MyPacket> packet(new MyPacket(_address, _address + ((_states.size() - 1) * 16) + 15, _states));
+			_physicalInterface->setOutputData(packet);
+		}
+
+		for(std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>>::iterator i = configCentral.begin(); i != configCentral.end(); ++i)
+		{
+			int32_t interval = 0;
+			int32_t decimalPlaces = 0;
+			int32_t inputMin = 0;
+			int32_t inputMax = 0;
+			int32_t outputMin = 0;
+			int32_t outputMax = 0;
+
+			std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>::iterator parameterIterator = i->second.find("INTERVAL");
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) interval = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+			parameterIterator = i->second.find("DECIMAL_PLACES");
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+			parameterIterator = i->second.find("INPUT_MIN");
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) inputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+			parameterIterator = i->second.find("INPUT_MAX");
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) inputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+			parameterIterator = i->second.find("OUTPUT_MIN");
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) outputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+			parameterIterator = i->second.find("OUTPUT_MAX");
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) outputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+			_intervals[i->first] = interval;
+			_decimalPlaces[i->first] = decimalPlaces;
+			_minimumInputValues[i->first] = inputMin;
+			_maximumInputValues[i->first] = inputMax;
+			_minimumOutputValues[i->first] = outputMin;
+			_maximumOutputValues[i->first] = outputMax;
+
+		}
 
 		return true;
 	}
@@ -552,55 +668,99 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 		if(_disposing || !_rpcDevice) return;
 		setLastPacketReceived();
 
-		if(packet == _states) return;
+		if(packet.size() == _states.size() && std::equal(packet.begin(), packet.end(), _states.begin())) return;
+
+		_states.resize(packet.size(), 0);
 
 		std::map<uint32_t, std::shared_ptr<std::vector<std::string>>> valueKeys;
 		std::map<uint32_t, std::shared_ptr<std::vector<PVariable>>> rpcValues;
 
-		for(uint32_t i = 0; i < packet.size(); i++)
+		if(isAnalog())
 		{
 			BaseLib::Systems::RPCConfigurationParameter* parameter = nullptr;
-			std::string name;
-			int32_t channel = -1;
+			std::string name = "LEVEL";
 			BaseLib::PVariable value;
 
-			if(isAnalog())
+			for(Functions::iterator channelIterator = _rpcDevice->functions.find(1); channelIterator != _rpcDevice->functions.end(); ++channelIterator)
 			{
-				name = "LEVEL";
-				if(packet.at(i) == _states.at(i)) continue;
+				int32_t index = (channelIterator->first - 1) + channelIterator->second->variables->memoryAddressStart / 16;
+				if(index >= (signed)packet.size()) continue;
+				if(packet.at(index) == _states.at(index)) continue;
 
-				channel = i + 1;
-				parameter = &valuesCentral[channel][name];
+				parameter = &valuesCentral[channelIterator->first][name];
 				if(!parameter->rpcParameter) continue;
 
-				LogicalInteger* levelParameter = (LogicalInteger*)parameter->rpcParameter->logical.get();
+				if(BaseLib::HelperFunctions::getTime() - _lastData[channelIterator->first] < _intervals[channelIterator->first]) continue;
+				_lastData[channelIterator->first] = BaseLib::HelperFunctions::getTime();
+
+				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->rpcParameter->logical.get();
 				bool isSigned = levelParameter->minimumValue < 0;
 
-				_states[i] = packet[i];
+				_states[index] = packet[index];
 
-				value.reset(new BaseLib::Variable(isSigned ? (int32_t)(int16_t)packet[i] : (uint32_t)packet[i]));
-				_binaryEncoder->encodeResponse(value, parameter->data);
+				double inputMin = 0;
+				double inputMax = 0;
+				double outputMin = 0;
+				double outputMax = 0;
+				if(_minimumInputValues[channelIterator->first] != 0 || _maximumInputValues[channelIterator->first] != 0)
+				{
+					inputMin = _minimumInputValues[channelIterator->first];
+					inputMax = _maximumInputValues[channelIterator->first];
+				}
+				else
+				{
+					inputMin = levelParameter->minimumValue;
+					inputMax = levelParameter->maximumValue;
+				}
+				if(_minimumOutputValues[channelIterator->first] != 0 || _maximumOutputValues[channelIterator->first] != 0)
+				{
+					outputMin = _minimumOutputValues[channelIterator->first];
+					outputMax = _maximumOutputValues[channelIterator->first];
+				}
+				else
+				{
+					outputMin = levelParameter->minimumValue;
+					outputMax = levelParameter->maximumValue;
+				}
+
+				double doubleValue = isSigned ? (double)(int16_t)packet[index] : (double)packet[index];
+				doubleValue = BaseLib::Math::scale(BaseLib::Math::clamp(doubleValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax);
+				double decimalFactor = BaseLib::Math::Pow10(_decimalPlaces[channelIterator->first]);
+				doubleValue = std::round(doubleValue * decimalFactor) / decimalFactor;
+
+				value.reset(new BaseLib::Variable(doubleValue));
+				std::vector<uint8_t> data;
+				_binaryEncoder->encodeResponse(value, data);
+				if(data.size() == parameter->data.size() && std::equal(data.begin(), data.end(), parameter->data.begin())) continue;
+				parameter->data = std::move(data);
 
 				if(!value) continue;
 
-				if(!valueKeys[channel] || !rpcValues[channel])
+				if(!valueKeys[channelIterator->first] || !rpcValues[channelIterator->first])
 				{
-					valueKeys[channel].reset(new std::vector<std::string>());
-					rpcValues[channel].reset(new std::vector<PVariable>());
+					valueKeys[channelIterator->first].reset(new std::vector<std::string>());
+					rpcValues[channelIterator->first].reset(new std::vector<PVariable>());
 				}
 
 				if(parameter->databaseID > 0) saveParameter(parameter->databaseID, parameter->data);
-				else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, name, parameter->data);
-				if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter->data) + ".");
+				else saveParameter(0, ParameterGroup::Type::Enum::variables, channelIterator->first, name, parameter->data);
+				if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channelIterator->first) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter->data) + ".");
 
-				valueKeys[channel]->push_back(name);
-				rpcValues[channel]->push_back(value);
+				valueKeys[channelIterator->first]->push_back(name);
+				rpcValues[channelIterator->first]->push_back(value);
 			}
-			else
+		}
+		else
+		{
+			for(uint32_t i = 0; i < packet.size(); i++)
 			{
+				BaseLib::Systems::RPCConfigurationParameter* parameter = nullptr;
+				std::string name = "STATE";
+				int32_t channel = -1;
+				BaseLib::PVariable value;
+
 				for(uint32_t j = 0; j < 16; j++)
 				{
-					name = "STATE";
 					if(!((packet.at(i) & _bitMask[j]) ^ (_states.at(i) & _bitMask[j]))) continue;
 
 					uint16_t bitValue = packet.at(i) & _bitMask[j];
@@ -739,12 +899,55 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 					if(!central) continue;
 					if(i->second->integerValue != _address) central->updatePeerAddress(_peerID, _address, i->second->integerValue);
 				}
-
 				parameter.rpcParameter->convertToPacket(i->second, parameter.data);
 				if(parameter.databaseID > 0) saveParameter(parameter.databaseID, parameter.data);
 				else saveParameter(0, ParameterGroup::Type::Enum::config, channel, i->first, parameter.data);
 				GD::out.printInfo("Info: Parameter " + i->first + " of peer " + std::to_string(_peerID) + " and channel " + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter.data) + ".");
 				if(parameter.rpcParameter->physical->operationType != IPhysical::OperationType::Enum::config && parameter.rpcParameter->physical->operationType != IPhysical::OperationType::Enum::configString) continue;
+
+				if(i->first == "INPUT_MIN" || i->first == "INPUT_MAX" || i->first == "OUTPUT_MIN" || i->first == "OUTPUT_MAX")
+				{
+					int32_t inputMin = 0;
+					int32_t inputMax = 0;
+					int32_t outputMin = 0;
+					int32_t outputMax = 0;
+
+					std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("INPUT_MIN");
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) inputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+					parameterIterator = channelIterator->second.find("INPUT_MAX");
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) inputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+					parameterIterator = channelIterator->second.find("OUTPUT_MIN");
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) outputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+					parameterIterator = channelIterator->second.find("OUTPUT_MAX");
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) outputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+					_minimumInputValues[channel] = inputMin;
+					_maximumInputValues[channel] = inputMax;
+					_minimumOutputValues[channel] = outputMin;
+					_maximumOutputValues[channel] = outputMax;
+				}
+				else if(i->first == "INTERVAL")
+				{
+					int32_t interval = 0;
+
+					std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("INTERVAL");
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) interval = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+					_intervals[channel] = interval;
+				}
+				else if(i->first == "DECIMAL_PLACES")
+				{
+					int32_t decimalPlaces = 0;
+
+					std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("DECIMAL_PLACES");
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+					_decimalPlaces[channel] = decimalPlaces;
+				}
+
 				configChanged = true;
 			}
 
@@ -762,6 +965,33 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 		{
 			return Variable::createError(-3, "Parameter set type is not supported.");
 		}
+		return PVariable(new Variable(VariableType::tVoid));
+	}
+	catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(BaseLib::Exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+    catch(...)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    return Variable::createError(-32500, "Unknown application error.");
+}
+
+PVariable MyPeer::setInterface(BaseLib::PRpcClientInfo clientInfo, std::string interfaceId)
+{
+	try
+	{
+		if(!interfaceId.empty() && GD::physicalInterfaces.find(interfaceId) == GD::physicalInterfaces.end())
+		{
+			return Variable::createError(-5, "Unknown physical interface.");
+		}
+		std::shared_ptr<MainInterface> interface(GD::physicalInterfaces.at(interfaceId));
+		setPhysicalInterfaceId(interfaceId);
 		return PVariable(new Variable(VariableType::tVoid));
 	}
 	catch(const std::exception& ex)
@@ -830,25 +1060,52 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			else _states.at(statesIndex) &= ~(1 << bitIndex);
 
 			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16), _address + (statesIndex * 16) + bitIndex, _states.at(statesIndex)));
-			GD::physicalInterface->sendPacket(packet);
+			_physicalInterface->sendPacket(packet);
 		}
 		else if(valueKey == "LEVEL") //Analog cards always have 16 bit per channel
 		{
-			int32_t statesIndex = channel - 1;
+			Functions::iterator functionIterator = _rpcDevice->functions.find(channel);
+			if(functionIterator == _rpcDevice->functions.end()) return Variable::createError(-2, "Unknown channel.");
+			int32_t statesIndex = channel + (functionIterator->second->variables->memoryAddressStart / 16) - 1;
 			while(statesIndex >= (signed)_states.size()) _states.push_back(0);
-			_states.at(statesIndex) = (int16_t)value->integerValue;
-
-			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16), _address + (statesIndex * 16) + 15, _states.at(statesIndex)));
-			GD::physicalInterface->sendPacket(packet);
+			if(_minimumInputValues[channel] != 0 || _maximumInputValues[channel] != 0 || _minimumOutputValues[channel] != 0 || _maximumOutputValues[channel] != 0)
+			{
+				double inputMin = 0;
+				double inputMax = 0;
+				double outputMin = 0;
+				double outputMax = 0;
+				if(_minimumInputValues[channel] != 0 || _maximumInputValues[channel] != 0)
+				{
+					inputMin = _minimumInputValues[channel];
+					inputMax = _maximumInputValues[channel];
+				}
+				else
+				{
+					LogicalDecimal* logicalLevel = (LogicalDecimal*)rpcParameter->logical.get();
+					inputMin = logicalLevel->minimumValue;
+					inputMax = logicalLevel->maximumValue;
+				}
+				if(_minimumOutputValues[channel] != 0 || _maximumOutputValues[channel] != 0)
+				{
+					outputMin = _minimumOutputValues[channel];
+					outputMax = _maximumOutputValues[channel];
+				}
+				else
+				{
+					LogicalDecimal* logicalLevel = (LogicalDecimal*)rpcParameter->logical.get();
+					outputMin = logicalLevel->minimumValue;
+					outputMax = logicalLevel->maximumValue;
+				}
+				_states.at(statesIndex) = (int16_t)std::lround(BaseLib::Math::scale(BaseLib::Math::clamp(value->floatValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax));
+			}
+			else _states.at(statesIndex) = (int16_t)std::lround(value->floatValue);
+			uint32_t offset = isAnalog() ? 0 : _physicalInterface->digitalOutputOffset();
+			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16) + offset, _address + (statesIndex * 16) + offset + 15, _states.at(statesIndex)));
+			_physicalInterface->sendPacket(packet);
 		}
 		else return Variable::createError(-5, "Only LEVEL and STATE are supported parameter names.");
 
-		int64_t states = 0;
-		for(uint32_t i = 0; i < _states.size(); i++)
-		{
-			if(i >= 4) break;
-			states |= _states[i] << (i * 16);
-		}
+		std::vector<char> states = serializeStates();
 		saveVariable(5, states);
 
 		if(!valueKeys->empty())

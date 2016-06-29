@@ -50,14 +50,15 @@ void Interfaces::create()
 		{
 			std::shared_ptr<MainInterface> device;
 			if(!*i) continue;
-			GD::out.printDebug("Debug: Creating physical device. Type defined in philipshue.conf is: " + (*i)->type);
+			GD::out.printDebug("Debug: Creating physical device. Type defined in beckhoffbk90x0.conf is: " + (*i)->type);
 			if((*i)->type == "bk90x0") device.reset(new MainInterface(*i));
 			else GD::out.printError("Error: Unsupported physical device type: " + (*i)->type);
 			if(device)
 			{
 				if(_physicalInterfaces.find((*i)->id) != _physicalInterfaces.end()) GD::out.printError("Error: id used for two devices: " + (*i)->id);
 				_physicalInterfaces[(*i)->id] = device;
-				GD::physicalInterface = device;
+				GD::physicalInterfaces[(*i)->id] = device;
+				if((*i)->isDefault || !GD::defaultPhysicalInterface) GD::defaultPhysicalInterface = device;
 			}
 		}
 	}

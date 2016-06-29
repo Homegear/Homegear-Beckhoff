@@ -33,7 +33,7 @@
 #define MY_FAMILY_ID 11
 #define MY_FAMILY_NAME "Beckhoff BK90x0"
 
-#include "homegear-base/BaseLib.h"
+#include <homegear-base/BaseLib.h>
 #include "MyFamily.h"
 #include "PhysicalInterfaces/MainInterface.h"
 
@@ -47,7 +47,8 @@ public:
 
 	static BaseLib::Obj* bl;
 	static MyFamily* family;
-	static std::shared_ptr<MainInterface> physicalInterface;
+	static std::map<std::string, std::shared_ptr<MainInterface>> physicalInterfaces;
+	static std::shared_ptr<MainInterface> defaultPhysicalInterface;
 	static BaseLib::Output out;
 private:
 	GD();

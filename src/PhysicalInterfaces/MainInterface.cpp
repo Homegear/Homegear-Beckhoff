@@ -214,41 +214,74 @@ void MainInterface::listen()
     	int64_t startTime = BaseLib::HelperFunctions::getTimeMicroseconds();
     	int64_t endTime;
     	int64_t timeToSleep;
-    	int result;
+    	int result = 0;
 
     	std::vector<uint16_t> readBuffer(_readBuffer.size(), 0);
 
         while(!_stopCallbackThread)
         {
-        	if(_stopped || !_modbus)
+        	try
         	{
-        		init();
-        		std::this_thread::sleep_for(std::chrono::milliseconds(200));
-        		if(_stopCallbackThread) return;
-        		continue;
-        	}
+				if(_stopped || !_modbus)
+				{
+					std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+					init();
+					if(_stopCallbackThread) return;
+					continue;
+				}
 
-        	if(_outputsEnabled) result = modbus_write_and_read_registers(_modbus, 0x800, _writeBuffer.size(), &_writeBuffer.at(0), 0x0, readBuffer.size(), &readBuffer.at(0));
-        	else result = modbus_read_registers(_modbus, 0x0, _readBuffer.size(), &readBuffer.at(0));
+				if(_readBuffer.empty())
+				{
+					if(_outputsEnabled && !_writeBuffer.empty()) result = modbus_write_registers(_modbus, 0x800, _writeBuffer.size(), &_writeBuffer.at(0));
+					else result = 0;
 
-        	if(result == -1)
-        	{
-        		_stopped = true;
-        		continue;
-        	}
+					if(result == -1)
+					{
+						_stopped = true;
+						continue;
+					}
+				}
+				else
+				{
+					if(readBuffer.size() != _readBuffer.size()) readBuffer.resize(_readBuffer.size(), 0);
 
-        	if(readBuffer != _readBuffer)
-        	{
-        		_readBuffer = readBuffer;
-        		std::shared_ptr<MyPacket> packet(new MyPacket(0, _readBuffer.size() * 8 - 1, readBuffer));
-        		raisePacketReceived(packet);
-        	}
+					//std::cerr << 'W' << BaseLib::HelperFunctions::getHexString(_writeBuffer) << std::endl;
+					if(_outputsEnabled && !_writeBuffer.empty()) result = modbus_write_and_read_registers(_modbus, 0x800, _writeBuffer.size(), &_writeBuffer.at(0), 0x0, readBuffer.size(), &readBuffer.at(0));
+					else result = modbus_read_registers(_modbus, 0x0, _readBuffer.size(), &readBuffer.at(0));
 
-			endTime = BaseLib::HelperFunctions::getTimeMicroseconds();
-			timeToSleep = (_settings->interval * 1000) - (endTime - startTime);
-			if(timeToSleep < 500) timeToSleep = 500;
-        	std::this_thread::sleep_for(std::chrono::microseconds(timeToSleep));
-        	startTime = endTime;
+					if(result == -1)
+					{
+						_stopped = true;
+						continue;
+					}
+
+					if(!std::equal(readBuffer.begin(), readBuffer.end(), _readBuffer.begin()))
+					{
+						_readBuffer = readBuffer;
+						//std::cerr << 'R' << BaseLib::HelperFunctions::getHexString(readBuffer) << std::endl;
+						std::shared_ptr<MyPacket> packet(new MyPacket(0, _readBuffer.size() * 8 - 1, readBuffer));
+						raisePacketReceived(packet);
+					}
+				}
+
+				endTime = BaseLib::HelperFunctions::getTimeMicroseconds();
+				timeToSleep = (_settings->interval * 1000) - (endTime - startTime);
+				if(timeToSleep < 500) timeToSleep = 500;
+				std::this_thread::sleep_for(std::chrono::microseconds(timeToSleep));
+				startTime = endTime;
+			}
+			catch(const std::exception& ex)
+			{
+				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+			}
+			catch(BaseLib::Exception& ex)
+			{
+				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+			}
+			catch(...)
+			{
+				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+			}
         }
     }
     catch(const std::exception& ex)
@@ -276,6 +309,7 @@ void MainInterface::setOutputData(std::shared_ptr<MyPacket> packet)
 		int32_t startBit = packet->getStartBit() % 16;
 		int32_t endBit = 15;
 		std::vector<uint16_t>& data = packet->getData();
+		if(data.empty()) return;
 		int16_t bitValue = 0;
 		int32_t dataRegisterPos = 0;
 		int32_t dataBitPos = 0;

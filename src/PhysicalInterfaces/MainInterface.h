@@ -31,7 +31,7 @@
 #define MAININTERFACE_H_
 
 #include "../MyPacket.h"
-#include "homegear-base/BaseLib.h"
+#include <homegear-base/BaseLib.h>
 #include <modbus/modbus.h>
 
 namespace MyFamily {
@@ -46,6 +46,8 @@ public:
 	void stopListening();
 
 	void enableOutputs() { _outputsEnabled = true; }
+	uint32_t digitalInputOffset() { return _bk9000Info.analogInputBits; }
+	uint32_t digitalOutputOffset() { return _bk9000Info.analogOutputBits; }
 
 	bool isOpen() { return !_stopped; }
 

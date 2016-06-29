@@ -30,7 +30,9 @@
 #ifndef MYPEER_H_
 #define MYPEER_H_
 
-#include "homegear-base/BaseLib.h"
+#include "PhysicalInterfaces/MainInterface.h"
+
+#include <homegear-base/BaseLib.h>
 
 #include <list>
 
@@ -53,6 +55,13 @@ public:
 	//Features
 	virtual bool wireless() { return false; }
 	//End features
+
+	//{{{ In table variables
+	std::string getPhysicalInterfaceId() { return _physicalInterfaceId; }
+	void setPhysicalInterfaceId(std::string);
+	//}}}
+
+	std::shared_ptr<MainInterface>& getPhysicalInterface() { return _physicalInterface; }
 
 	virtual void setAddress(int32_t value);
 
@@ -86,6 +95,7 @@ public:
 
 	//RPC methods
 	virtual PVariable putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channel, ParameterGroup::Type::Enum type, uint64_t remoteID, int32_t remoteChannel, PVariable variables, bool onlyPushing = false);
+	PVariable setInterface(BaseLib::PRpcClientInfo clientInfo, std::string interfaceId);
 	virtual PVariable setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel, std::string valueKey, PVariable value, bool wait);
 	//End RPC methods
 protected:
@@ -94,18 +104,31 @@ protected:
 
 	//In table variables:
 	std::vector<uint16_t> _states;
+	std::string _physicalInterfaceId;
 	//End
 
 	bool _shuttingDown = false;
+	std::shared_ptr<MainInterface> _physicalInterface;
 	int32_t _bitSize = -1;
 	int32_t _registerSize = -1;
+	std::map<int32_t, int64_t> _lastData;
+	std::map<int32_t, int32_t> _intervals;
+	std::map<int32_t, int32_t> _decimalPlaces;
+	std::map<int32_t, int32_t> _minimumInputValues;
+	std::map<int32_t, int32_t> _maximumInputValues;
+	std::map<int32_t, int32_t> _minimumOutputValues;
+	std::map<int32_t, int32_t> _maximumOutputValues;
 
 	std::shared_ptr<BaseLib::RPC::RPCEncoder> _binaryEncoder;
 
 	virtual void loadVariables(BaseLib::Systems::ICentral* central, std::shared_ptr<BaseLib::Database::DataTable>& rows);
     virtual void saveVariables();
+    std::vector<char> serializeStates();
+	void unserializeStates(std::vector<char>& data);
 
     virtual int32_t getStorageSize();
+
+    virtual void setPhysicalInterface(std::shared_ptr<MainInterface> interface);
 
 	virtual std::shared_ptr<BaseLib::Systems::ICentral> getCentral();
 
