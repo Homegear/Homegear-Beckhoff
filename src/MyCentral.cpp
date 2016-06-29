@@ -57,7 +57,7 @@ void MyCentral::dispose(bool wait)
 		for(std::map<std::string, std::shared_ptr<MainInterface>>::iterator i = GD::physicalInterfaces.begin(); i != GD::physicalInterfaces.end(); ++i)
 		{
 			//Just to make sure cycle through all physical devices. If event handler is not removed => segfault
-			if(i->second) i->second->removeEventHandler(_physicalInterfaceEventhandlers[i->first]);
+			i->second->removeEventHandler(_physicalInterfaceEventhandlers[i->first]);
 		}
 	}
     catch(const std::exception& ex)

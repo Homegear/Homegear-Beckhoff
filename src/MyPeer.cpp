@@ -377,9 +377,9 @@ int32_t MyPeer::getStorageSize()
 			{
 				PParameter parameter = i->second->variables->getParameter("LEVEL");
 				if(!parameter) continue;
-				if(parameter->logical->type != BaseLib::DeviceDescription::ILogical::Type::tInteger) continue;
-				LogicalInteger* levelParameter = (LogicalInteger*)parameter->logical.get();
-				uint32_t range = levelParameter->maximumValue + (levelParameter->minimumValue * -1);
+				if(parameter->logical->type != BaseLib::DeviceDescription::ILogical::Type::tFloat) continue;
+				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->logical.get();
+				uint32_t range = (int32_t)levelParameter->maximumValue + ((int32_t)levelParameter->minimumValue * -1);
 				while(range)
 				{
 					range = range >> 1;
@@ -611,6 +611,7 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 		for(std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>>::iterator i = configCentral.begin(); i != configCentral.end(); ++i)
 		{
 			int32_t interval = 0;
+			int32_t decimalPlaces = 0;
 			int32_t inputMin = 0;
 			int32_t inputMax = 0;
 			int32_t outputMin = 0;
@@ -618,6 +619,9 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 
 			std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>::iterator parameterIterator = i->second.find("INTERVAL");
 			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) interval = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+			parameterIterator = i->second.find("DECIMAL_PLACES");
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
 
 			parameterIterator = i->second.find("INPUT_MIN");
 			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) inputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
@@ -632,6 +636,7 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) outputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
 
 			_intervals[i->first] = interval;
+			_decimalPlaces[i->first] = decimalPlaces;
 			_minimumInputValues[i->first] = inputMin;
 			_maximumInputValues[i->first] = inputMax;
 			_minimumOutputValues[i->first] = outputMin;
@@ -688,15 +693,15 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 				if(BaseLib::HelperFunctions::getTime() - _lastData[channelIterator->first] < _intervals[channelIterator->first]) continue;
 				_lastData[channelIterator->first] = BaseLib::HelperFunctions::getTime();
 
-				LogicalInteger* levelParameter = (LogicalInteger*)parameter->rpcParameter->logical.get();
+				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->rpcParameter->logical.get();
 				bool isSigned = levelParameter->minimumValue < 0;
 
 				_states[index] = packet[index];
 
-				int32_t inputMin = 0;
-				int32_t inputMax = 0;
-				int32_t outputMin = 0;
-				int32_t outputMax = 0;
+				double inputMin = 0;
+				double inputMax = 0;
+				double outputMin = 0;
+				double outputMax = 0;
 				if(_minimumInputValues[channelIterator->first] != 0 || _maximumInputValues[channelIterator->first] != 0)
 				{
 					inputMin = _minimumInputValues[channelIterator->first];
@@ -718,11 +723,16 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 					outputMax = levelParameter->maximumValue;
 				}
 
-				int32_t integerValue = isSigned ? (int32_t)(int16_t)packet[index] : packet[index];
-				integerValue = BaseLib::Math::scale(BaseLib::Math::clamp(integerValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax);
+				double doubleValue = isSigned ? (double)(int16_t)packet[index] : (double)packet[index];
+				doubleValue = BaseLib::Math::scale(BaseLib::Math::clamp(doubleValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax);
+				double decimalFactor = BaseLib::Math::Pow10(_decimalPlaces[channelIterator->first]);
+				doubleValue = std::round(doubleValue * decimalFactor) / decimalFactor;
 
-				value.reset(new BaseLib::Variable(integerValue));
-				_binaryEncoder->encodeResponse(value, parameter->data);
+				value.reset(new BaseLib::Variable(doubleValue));
+				std::vector<uint8_t> data;
+				_binaryEncoder->encodeResponse(value, data);
+				if(data.size() == parameter->data.size() && std::equal(data.begin(), data.end(), parameter->data.begin())) continue;
+				parameter->data = std::move(data);
 
 				if(!value) continue;
 
@@ -928,6 +938,15 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 
 					_intervals[channel] = interval;
 				}
+				else if(i->first == "DECIMAL_PLACES")
+				{
+					int32_t decimalPlaces = 0;
+
+					std::unordered_map<std::string, BaseLib::Systems::RPCConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("DECIMAL_PLACES");
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterIterator->second.data)->integerValue;
+
+					_decimalPlaces[channel] = decimalPlaces;
+				}
 
 				configChanged = true;
 			}
@@ -1051,10 +1070,10 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			while(statesIndex >= (signed)_states.size()) _states.push_back(0);
 			if(_minimumInputValues[channel] != 0 || _maximumInputValues[channel] != 0 || _minimumOutputValues[channel] != 0 || _maximumOutputValues[channel] != 0)
 			{
-				int32_t inputMin = 0;
-				int32_t inputMax = 0;
-				int32_t outputMin = 0;
-				int32_t outputMax = 0;
+				double inputMin = 0;
+				double inputMax = 0;
+				double outputMin = 0;
+				double outputMax = 0;
 				if(_minimumInputValues[channel] != 0 || _maximumInputValues[channel] != 0)
 				{
 					inputMin = _minimumInputValues[channel];
@@ -1062,7 +1081,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 				}
 				else
 				{
-					LogicalInteger* logicalLevel = (LogicalInteger*)rpcParameter->logical.get();
+					LogicalDecimal* logicalLevel = (LogicalDecimal*)rpcParameter->logical.get();
 					inputMin = logicalLevel->minimumValue;
 					inputMax = logicalLevel->maximumValue;
 				}
@@ -1073,13 +1092,13 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 				}
 				else
 				{
-					LogicalInteger* logicalLevel = (LogicalInteger*)rpcParameter->logical.get();
+					LogicalDecimal* logicalLevel = (LogicalDecimal*)rpcParameter->logical.get();
 					outputMin = logicalLevel->minimumValue;
 					outputMax = logicalLevel->maximumValue;
 				}
-				_states.at(statesIndex) = (int16_t)BaseLib::Math::scale(BaseLib::Math::clamp(value->integerValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax);
+				_states.at(statesIndex) = (int16_t)std::lround(BaseLib::Math::scale(BaseLib::Math::clamp(value->floatValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax));
 			}
-			else _states.at(statesIndex) = (int16_t)value->integerValue;
+			else _states.at(statesIndex) = (int16_t)std::lround(value->floatValue);
 			uint32_t offset = isAnalog() ? 0 : _physicalInterface->digitalOutputOffset();
 			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16) + offset, _address + (statesIndex * 16) + offset + 15, _states.at(statesIndex)));
 			_physicalInterface->sendPacket(packet);

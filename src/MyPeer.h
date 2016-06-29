@@ -113,6 +113,7 @@ protected:
 	int32_t _registerSize = -1;
 	std::map<int32_t, int64_t> _lastData;
 	std::map<int32_t, int32_t> _intervals;
+	std::map<int32_t, int32_t> _decimalPlaces;
 	std::map<int32_t, int32_t> _minimumInputValues;
 	std::map<int32_t, int32_t> _maximumInputValues;
 	std::map<int32_t, int32_t> _minimumOutputValues;
