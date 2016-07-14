@@ -33,7 +33,7 @@
 namespace MyFamily
 {
 
-MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterfaceSettings> settings) : IPhysicalInterface(GD::bl, settings)
+MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterfaceSettings> settings) : IPhysicalInterface(GD::bl, GD::family->getFamily(), settings)
 {
 	_settings = settings;
 	_out.init(GD::bl);
