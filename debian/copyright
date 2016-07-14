@@ -1,5 +1,5 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: homegear-beckhoff-bk90x0
+Upstream-Name: homegear-beckhoff
 Upstream-Contact: Sathya Laufer <sathya@laufers.net>
 
 Files: *

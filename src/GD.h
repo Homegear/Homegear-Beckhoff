@@ -31,7 +31,7 @@
 #define GD_H_
 
 #define MY_FAMILY_ID 11
-#define MY_FAMILY_NAME "Beckhoff BK90x0"
+#define MY_FAMILY_NAME "Beckhoff"
 
 #include <homegear-base/BaseLib.h>
 #include "MyFamily.h"
