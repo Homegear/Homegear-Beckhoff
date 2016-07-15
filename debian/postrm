@@ -9,7 +9,7 @@ case "$1" in
 
 	purge)
 		rm -Rf /etc/homegear/devices/11 > /dev/null 2>&1
-		rm -f /var/lib/homegear/modules/mod_beckhoff_bk90x0.so > /dev/null 2>&1
+		rm -f /var/lib/homegear/modules/mod_beckhoff.so > /dev/null 2>&1
         ;;
 
 	disappear)
