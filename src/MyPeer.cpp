@@ -92,7 +92,7 @@ void MyPeer::init()
 {
 	try
 	{
-		_binaryEncoder.reset(new BaseLib::RPC::RPCEncoder(GD::bl));
+		_binaryEncoder.reset(new BaseLib::Rpc::RpcEncoder(GD::bl));
 	}
 	catch(const std::exception& ex)
 	{
