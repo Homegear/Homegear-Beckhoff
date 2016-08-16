@@ -9,6 +9,6 @@ Homepage: https://homegear.eu
 Package: homegear-beckhoff
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}, libhomegear-base (= <BASELIBVER>), homegear (= <BASELIBVER>), libgcrypt20, libgnutlsxx28, libgpg-error0 (>= 1.10), libmodbus5
-Description: IPCam module for Homegear
+Description: Beckhoff module for Homegear
  Homegear is a program to interface your home automation software 
  with your smart home devices.
