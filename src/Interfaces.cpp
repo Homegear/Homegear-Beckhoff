@@ -50,7 +50,7 @@ void Interfaces::create()
 		{
 			std::shared_ptr<MainInterface> device;
 			if(!i->second) continue;
-			GD::out.printDebug("Debug: Creating physical device. Type defined in beckhoffbk90x0.conf is: " + i->second->type);
+			GD::out.printDebug("Debug: Creating physical device. Type defined in beckhoff.conf is: " + i->second->type);
 			if(i->second->type == "bk90x0") device.reset(new MainInterface(i->second));
 			else GD::out.printError("Error: Unsupported physical device type: " + i->second->type);
 			if(device)
