@@ -10,5 +10,5 @@ rm -Rf autom4te.cache
 ./bootstrap || exit 1
 ./configure --prefix=/usr --localstatedir=/var --sysconfdir=/etc --libdir=/usr/lib || exit 1
 make -j${BUILDTHREADS} || exit 1
-strip -s src/.libs/mod_beckhoff-bk90x0.so
+strip -s src/.libs/mod_beckhoff.so
 make install
