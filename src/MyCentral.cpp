@@ -443,7 +443,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 			if(index < 5 + offset)
 			{
 				stringStream << "Description: This command creates a new peer." << std::endl;
-				stringStream << "Usage: peers add INTERFACE TYPE ADDRESS SERIAL" << std::endl << std::endl;
+				stringStream << "Usage: peers create INTERFACE TYPE ADDRESS SERIAL" << std::endl << std::endl;
 				stringStream << "Parameters:" << std::endl;
 				stringStream << "  INTERFACE: The id of the interface to associate the new device to as defined in the familie's configuration file." << std::endl;
 				stringStream << "  TYPE:      The 2 byte hexadecimal device type. Example: 0x4001" << std::endl;
@@ -571,7 +571,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 				}
 				if(index == -1)
 				{
-					stringStream << "Description: This command unpairs a peer." << std::endl;
+					stringStream << "Description: This command lists information about all peers." << std::endl;
 					stringStream << "Usage: peers list [FILTERTYPE] [FILTERVALUE]" << std::endl << std::endl;
 					stringStream << "Parameters:" << std::endl;
 					stringStream << "  FILTERTYPE:  See filter types below." << std::endl;
