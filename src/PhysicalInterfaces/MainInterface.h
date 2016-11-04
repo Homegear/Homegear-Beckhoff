@@ -74,9 +74,9 @@ protected:
 
 	BaseLib::Output _out;
 	std::mutex _modbusMutex;
-	modbus_t* _modbus = nullptr;
+	std::atomic<modbus_t*> _modbus;
 	Bk9000Info _bk9000Info;
-	bool _outputsEnabled = false;
+	std::atomic_bool _outputsEnabled;
 
 	std::vector<uint16_t> _writeBuffer;
 	std::vector<uint16_t> _readBuffer;

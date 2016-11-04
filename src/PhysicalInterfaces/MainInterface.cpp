@@ -39,6 +39,9 @@ MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterface
 	_out.init(GD::bl);
 	_out.setPrefix(GD::out.getPrefix() + "Beckhoff BK90x0 \"" + settings->id + "\": ");
 
+	_modbus = nullptr;
+	_outputsEnabled = false;
+
 	signal(SIGPIPE, SIG_IGN);
 }
 
