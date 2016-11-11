@@ -137,6 +137,8 @@ void MainInterface::init()
 			_modbus = nullptr;
 			return;
 		}
+		_hostname = _settings->host;
+		_ipAddress = BaseLib::Net::resolveHostname(_hostname);
 
         memset(&_bk9000Info, 0, sizeof(_bk9000Info));
         result = modbus_read_registers(_modbus, 0x1000, sizeof(_bk9000Info) / 2, (uint16_t*)(&_bk9000Info));
