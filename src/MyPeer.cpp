@@ -1105,9 +1105,18 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 				}
 				else
 				{
-					LogicalDecimal* logicalLevel = (LogicalDecimal*)rpcParameter->logical.get();
-					inputMin = logicalLevel->minimumValue;
-					inputMax = logicalLevel->maximumValue;
+					std::shared_ptr<LogicalDecimal> logicalDecimalLevel(std::dynamic_pointer_cast<LogicalDecimal>(rpcParameter->logical));
+					if(logicalDecimalLevel)
+					{
+						inputMin = logicalDecimalLevel->minimumValue;
+						inputMax = logicalDecimalLevel->maximumValue;
+					}
+					else
+					{
+						std::shared_ptr<LogicalInteger> logicalIntegerLevel(std::dynamic_pointer_cast<LogicalInteger>(rpcParameter->logical));
+						inputMin = logicalIntegerLevel->minimumValue;
+						inputMax = logicalIntegerLevel->maximumValue;
+					}
 				}
 				if(_minimumOutputValues[channel] != 0 || _maximumOutputValues[channel] != 0)
 				{
@@ -1116,9 +1125,18 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 				}
 				else
 				{
-					LogicalDecimal* logicalLevel = (LogicalDecimal*)rpcParameter->logical.get();
-					outputMin = logicalLevel->minimumValue;
-					outputMax = logicalLevel->maximumValue;
+					std::shared_ptr<LogicalDecimal> logicalDecimalLevel(std::dynamic_pointer_cast<LogicalDecimal>(rpcParameter->logical));
+					if(logicalDecimalLevel)
+					{
+						outputMin = logicalDecimalLevel->minimumValue;
+						outputMax = logicalDecimalLevel->maximumValue;
+					}
+					else
+					{
+						std::shared_ptr<LogicalInteger> logicalIntegerLevel(std::dynamic_pointer_cast<LogicalInteger>(rpcParameter->logical));
+						outputMin = logicalDecimalLevel->minimumValue;
+						outputMax = logicalDecimalLevel->maximumValue;
+					}
 				}
 				_states.at(statesIndex) = (int16_t)std::lround(BaseLib::Math::scale(BaseLib::Math::clamp(value->floatValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax));
 			}
