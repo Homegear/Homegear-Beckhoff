@@ -38,6 +38,23 @@
 	</functions>
 	<parameterGroups>
 		<configParameters id="config">
+			<parameter id="DECIMAL_PLACES">
+				<properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<defaultValue>0</defaultValue>
+		        	<minimumValue>0</minimumValue>
+		        	<maximumValue>6</maximumValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
 			<parameter id="INTERVAL">
 		        <properties>
 		          <readable>true</readable>
@@ -198,11 +215,11 @@
 						<rpcBinary/>
 					</casts>
 				</properties>
-				<logicalInteger>
+				<logicalDecimal>
 					<defaultValue>0</defaultValue>
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
-				</logicalInteger>
+				</logicalDecimal>
 				<physicalNone groupId="STATE">
 					<operationType>command</operationType>
 				</physicalNone>
@@ -216,11 +233,11 @@
 						<rpcBinary/>
 					</casts>
 				</properties>
-				<logicalInteger>
+				<logicalDecimal>
 					<defaultValue>0</defaultValue>
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
-				</logicalInteger>
+				</logicalDecimal>
 				<physicalNone groupId="STATE">
 					<operationType>command</operationType>
 				</physicalNone>
@@ -234,11 +251,11 @@
 						<rpcBinary/>
 					</casts>
 				</properties>
-				<logicalInteger>
+				<logicalDecimal>
 					<defaultValue>0</defaultValue>
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
-				</logicalInteger>
+				</logicalDecimal>
 				<physicalNone groupId="STATE">
 					<operationType>command</operationType>
 				</physicalNone>
@@ -252,11 +269,11 @@
 						<rpcBinary/>
 					</casts>
 				</properties>
-				<logicalInteger>
+				<logicalDecimal>
 					<defaultValue>0</defaultValue>
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
-				</logicalInteger>
+				</logicalDecimal>
 				<physicalNone groupId="STATE">
 					<operationType>command</operationType>
 				</physicalNone>
