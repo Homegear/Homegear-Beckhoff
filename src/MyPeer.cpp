@@ -1070,11 +1070,6 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 		}
 		else if(rpcParameter->physical->operationType != IPhysical::OperationType::Enum::command) return Variable::createError(-6, "Parameter is not settable.");
 
-		rpcParameter->convertToPacket(value, parameter.data);
-		if(parameter.databaseID > 0) saveParameter(parameter.databaseID, parameter.data);
-		else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, valueKey, parameter.data);
-		if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + valueKey + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter.data) + ".");
-
 		if(valueKey == "STATE")
 		{
 			int32_t statesIndex = (channel - 1) / 16;
@@ -1138,7 +1133,8 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 						outputMax = logicalDecimalLevel->maximumValue;
 					}
 				}
-				_states.at(statesIndex) = (int16_t)std::lround(BaseLib::Math::scale(BaseLib::Math::clamp(value->floatValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax));
+				value->floatValue = BaseLib::Math::clamp(value->floatValue, inputMin, inputMax);
+				_states.at(statesIndex) = (int16_t)std::lround(BaseLib::Math::scale(value->floatValue, inputMin, inputMax, outputMin, outputMax));
 			}
 			else _states.at(statesIndex) = (int16_t)std::lround(value->floatValue);
 			uint32_t offset = isAnalog() ? 0 : _physicalInterface->digitalOutputOffset();
@@ -1146,6 +1142,11 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			_physicalInterface->sendPacket(packet);
 		}
 		else return Variable::createError(-5, "Only LEVEL and STATE are supported parameter names.");
+
+		rpcParameter->convertToPacket(value, parameter.data);
+		if(parameter.databaseID > 0) saveParameter(parameter.databaseID, parameter.data);
+		else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, valueKey, parameter.data);
+		if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + valueKey + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameter.data) + ".");
 
 		std::vector<char> states = serializeStates();
 		saveVariable(5, states);
