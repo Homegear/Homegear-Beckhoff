@@ -622,28 +622,46 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 			int32_t outputMax = 0;
 
 			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = i->second.find("INTERVAL");
-			std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) interval = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				interval = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			}
 
 			parameterIterator = i->second.find("DECIMAL_PLACES");
-			parameterData = parameterIterator->second.getBinaryData();
-			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			}
 
 			parameterIterator = i->second.find("INPUT_MIN");
-			parameterData = parameterIterator->second.getBinaryData();
-			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) inputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				inputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			}
 
 			parameterIterator = i->second.find("INPUT_MAX");
-			parameterData = parameterIterator->second.getBinaryData();
-			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) inputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				inputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			}
 
 			parameterIterator = i->second.find("OUTPUT_MIN");
-			parameterData = parameterIterator->second.getBinaryData();
-			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) outputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				outputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			}
 
 			parameterIterator = i->second.find("OUTPUT_MAX");
-			parameterData = parameterIterator->second.getBinaryData();
-			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter) outputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				outputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+			}
 
 			_intervals[i->first] = interval;
 			_decimalPlaces[i->first] = decimalPlaces;
@@ -961,20 +979,32 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 					int32_t outputMax = 0;
 
 					std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("INPUT_MIN");
-					std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) inputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter)
+					{
+						std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+						inputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					}
 
 					parameterIterator = channelIterator->second.find("INPUT_MAX");
-					parameterData = parameterIterator->second.getBinaryData();
-					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) inputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter)
+					{
+						std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+						inputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					}
 
 					parameterIterator = channelIterator->second.find("OUTPUT_MIN");
-					parameterData = parameterIterator->second.getBinaryData();
-					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) outputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter)
+					{
+						std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+						outputMin = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					}
 
 					parameterIterator = channelIterator->second.find("OUTPUT_MAX");
-					parameterData = parameterIterator->second.getBinaryData();
-					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) outputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter)
+					{
+						std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+						outputMax = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					}
 
 					_minimumInputValues[channel] = inputMin;
 					_maximumInputValues[channel] = inputMax;
@@ -986,8 +1016,11 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 					int32_t interval = 0;
 
 					std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("INTERVAL");
-					std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) interval = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter)
+					{
+						std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+						interval = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					}
 
 					_intervals[channel] = interval;
 				}
@@ -996,8 +1029,11 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 					int32_t decimalPlaces = 0;
 
 					std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("DECIMAL_PLACES");
-					std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter) decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					if(parameterIterator != channelIterator->second.end() && parameterIterator->second.rpcParameter)
+					{
+						std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+						decimalPlaces = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+					}
 
 					_decimalPlaces[channel] = decimalPlaces;
 				}
