@@ -261,13 +261,12 @@ void MainInterface::listen()
 					}
 
 					_lastPacketSent = BaseLib::HelperFunctions::getTime();
-
+					_lastPacketReceived = _lastPacketSent;
 					if(!std::equal(readBuffer.begin(), readBuffer.end(), _readBuffer.begin()))
 					{
 						_readBuffer = readBuffer;
 						//std::cerr << 'R' << BaseLib::HelperFunctions::getHexString(readBuffer) << std::endl;
 						std::shared_ptr<MyPacket> packet(new MyPacket(0, _readBuffer.size() * 8 - 1, readBuffer));
-						_lastPacketReceived = BaseLib::HelperFunctions::getTime();
 						raisePacketReceived(packet);
 					}
 				}
