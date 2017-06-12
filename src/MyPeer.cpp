@@ -1122,6 +1122,12 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			values->push_back(value);
 		}
 
+		if(value->floatValue == 0)
+		{
+			if(value->integerValue != 0) value->floatValue = value->integerValue;
+			if(value->integerValue64 != 0) value->floatValue = value->integerValue64;
+		}
+
 		if(rpcParameter->physical->operationType == IPhysical::OperationType::Enum::store)
 		{
 			std::vector<uint8_t> parameterData;
@@ -1143,7 +1149,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			int32_t statesIndex = (channel - 1) / 16;
 			while(statesIndex >= (signed)_states.size()) _states.push_back(0);
 			int32_t bitIndex = (channel - 1) % 16;
-			if(value->booleanValue) _states.at(statesIndex) |= 1 << bitIndex;
+			if(*value) _states.at(statesIndex) |= 1 << bitIndex;
 			else _states.at(statesIndex) &= ~(1 << bitIndex);
 
 			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16), _address + (statesIndex * 16) + bitIndex, _states.at(statesIndex)));
