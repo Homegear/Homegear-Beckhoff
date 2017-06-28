@@ -103,6 +103,7 @@ protected:
 	const uint16_t _reversedBitMask[16] = { 0b1111111111111110, 0b1111111111111101, 0b1111111111111011, 0b1111111111110111, 0b1111111111101111, 0b1111111111011111, 0b1111111110111111, 0b1111111101111111, 0b1111111011111111, 0b1111110111111111, 0b1111101111111111, 0b1111011111111111, 0b1110111111111111, 0b1101111111111111, 0b1011111111111111, 0b0111111111111111 };
 
 	//In table variables:
+	std::mutex _statesMutex;
 	std::vector<uint16_t> _states;
 	std::string _physicalInterfaceId;
 	//End
@@ -111,6 +112,7 @@ protected:
 	std::shared_ptr<MainInterface> _physicalInterface;
 	int32_t _bitSize = -1;
 	int32_t _registerSize = -1;
+	std::mutex _lastDataMutex;
 	std::map<int32_t, int64_t> _lastData;
 	std::map<int32_t, int32_t> _intervals;
 	std::map<int32_t, int32_t> _decimalPlaces;

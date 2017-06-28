@@ -476,6 +476,7 @@ std::vector<char> MyPeer::serializeStates()
 	try
 	{
 		std::vector<char> states;
+		std::lock_guard<std::mutex> statesGuard(_statesMutex);
 		states.reserve(_states.size() * 2);
 		for(std::vector<uint16_t>::iterator i = _states.begin(); i != _states.end(); ++i)
 		{
@@ -503,6 +504,7 @@ void MyPeer::unserializeStates(std::vector<char>& data)
 {
 	try
 	{
+		std::lock_guard<std::mutex> statesGuard(_statesMutex);
 		_states.resize(data.size() / 2, 0);
 		for(uint32_t i = 0; i < data.size(); i += 2)
 		{
@@ -606,10 +608,13 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 		serviceMessages.reset(new BaseLib::Systems::ServiceMessages(_bl, _peerID, _serialNumber, this));
 		serviceMessages->load();
 
-		if(!_states.empty())
 		{
-			std::shared_ptr<MyPacket> packet(new MyPacket(_address, _address + ((_states.size() - 1) * 16) + 15, _states));
-			_physicalInterface->setOutputData(packet);
+			std::lock_guard<std::mutex> statesGuard(_statesMutex);
+			if(!_states.empty())
+			{
+				std::shared_ptr<MyPacket> packet(new MyPacket(_address, _address + ((_states.size() - 1) * 16) + 15, _states));
+				_physicalInterface->setOutputData(packet);
+			}
 		}
 
 		for(std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator i = configCentral.begin(); i != configCentral.end(); ++i)
@@ -696,9 +701,11 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 		if(_disposing || !_rpcDevice) return;
 		setLastPacketReceived();
 
+		std::unique_lock<std::mutex> statesGuard(_statesMutex);
 		if(packet.size() == _states.size() && std::equal(packet.begin(), packet.end(), _states.begin())) return;
 
 		_states.resize(packet.size(), 0);
+		statesGuard.unlock();
 
 		std::map<uint32_t, std::shared_ptr<std::vector<std::string>>> valueKeys;
 		std::map<uint32_t, std::shared_ptr<std::vector<PVariable>>> rpcValues;
@@ -713,18 +720,29 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 			{
 				int32_t index = (channelIterator->first - 1) + channelIterator->second->variables->memoryAddressStart / 16;
 				if(index >= (signed)packet.size()) continue;
-				if(packet.at(index) == _states.at(index)) continue;
+				statesGuard.lock();
+				if(packet.at(index) == _states.at(index))
+				{
+					statesGuard.unlock();
+					continue;
+				}
+				statesGuard.unlock();
 
 				parameter = &valuesCentral[channelIterator->first][name];
 				if(!parameter->rpcParameter) continue;
 
-				if(BaseLib::HelperFunctions::getTime() - _lastData[channelIterator->first] < _intervals[channelIterator->first]) continue;
-				_lastData[channelIterator->first] = BaseLib::HelperFunctions::getTime();
+				{
+					std::lock_guard<std::mutex> lastDataGuard(_lastDataMutex);
+					if(BaseLib::HelperFunctions::getTime() - _lastData[channelIterator->first] < _intervals[channelIterator->first]) continue;
+					_lastData[channelIterator->first] = BaseLib::HelperFunctions::getTime();
+				}
 
 				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->rpcParameter->logical.get();
 				bool isSigned = levelParameter->minimumValue < 0;
 
+				statesGuard.lock();
 				_states[index] = packet[index];
+				statesGuard.unlock();
 
 				double inputMin = 0;
 				double inputMax = 0;
@@ -789,11 +807,17 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 
 				for(uint32_t j = 0; j < 16; j++)
 				{
-					if(!((packet.at(i) & _bitMask[j]) ^ (_states.at(i) & _bitMask[j]))) continue;
+					statesGuard.lock();
+					if(!((packet.at(i) & _bitMask[j]) ^ (_states.at(i) & _bitMask[j])))
+					{
+						statesGuard.unlock();
+						continue;
+					}
 
 					uint16_t bitValue = packet.at(i) & _bitMask[j];
 					_states.at(i) &= _reversedBitMask[j];
 					_states.at(i) |= bitValue;
+					statesGuard.unlock();
 
 					channel = (i * 16) + j + 1;
 					parameter = &valuesCentral[channel][name];
@@ -1147,12 +1171,17 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 		if(valueKey == "STATE")
 		{
 			int32_t statesIndex = (channel - 1) / 16;
-			while(statesIndex >= (signed)_states.size()) _states.push_back(0);
 			int32_t bitIndex = (channel - 1) % 16;
-			if(*value) _states.at(statesIndex) |= 1 << bitIndex;
-			else _states.at(statesIndex) &= ~(1 << bitIndex);
+			std::shared_ptr<MyPacket> packet;
 
-			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16), _address + (statesIndex * 16) + bitIndex, _states.at(statesIndex)));
+			{
+				std::lock_guard<std::mutex> statesGuard(_statesMutex);
+				while(statesIndex >= (signed)_states.size()) _states.push_back(0);
+				if(*value) _states.at(statesIndex) |= 1 << bitIndex;
+				else _states.at(statesIndex) &= ~(1 << bitIndex);
+				packet = std::make_shared<MyPacket>(_address + (statesIndex * 16), _address + (statesIndex * 16) + bitIndex, _states.at(statesIndex));
+			}
+
 			_physicalInterface->sendPacket(packet);
 		}
 		else if(valueKey == "LEVEL") //Analog cards always have 16 bit per channel
@@ -1160,7 +1189,9 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			Functions::iterator functionIterator = _rpcDevice->functions.find(channel);
 			if(functionIterator == _rpcDevice->functions.end()) return Variable::createError(-2, "Unknown channel.");
 			int32_t statesIndex = channel + (functionIterator->second->variables->memoryAddressStart / 16) - 1;
+			std::unique_lock<std::mutex> statesGuard(_statesMutex);
 			while(statesIndex >= (signed)_states.size()) _states.push_back(0);
+			statesGuard.unlock();
 			if(_minimumInputValues[channel] != 0 || _maximumInputValues[channel] != 0 || _minimumOutputValues[channel] != 0 || _maximumOutputValues[channel] != 0)
 			{
 				double inputMin = 0;
@@ -1208,11 +1239,20 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 					}
 				}
 				value->floatValue = BaseLib::Math::clamp(value->floatValue, inputMin, inputMax);
+				statesGuard.lock();
 				_states.at(statesIndex) = (int16_t)std::lround(BaseLib::Math::scale(value->floatValue, inputMin, inputMax, outputMin, outputMax));
+				statesGuard.unlock();
 			}
-			else _states.at(statesIndex) = (int16_t)std::lround(value->floatValue);
+			else
+			{
+				statesGuard.lock();
+				_states.at(statesIndex) = (int16_t)std::lround(value->floatValue);
+				statesGuard.unlock();
+			}
 			uint32_t offset = isAnalog() ? 0 : _physicalInterface->digitalOutputOffset();
+			statesGuard.lock();
 			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16) + offset, _address + (statesIndex * 16) + offset + 15, _states.at(statesIndex)));
+			statesGuard.unlock();
 			_physicalInterface->sendPacket(packet);
 		}
 		else return Variable::createError(-5, "Only LEVEL and STATE are supported parameter names.");
