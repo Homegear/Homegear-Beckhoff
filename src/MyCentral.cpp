@@ -447,7 +447,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 				stringStream << "Parameters:" << std::endl;
 				stringStream << "  INTERFACE: The id of the interface to associate the new device to as defined in the familie's configuration file." << std::endl;
 				stringStream << "  TYPE:      The 2 byte hexadecimal device type. Example: 0x4001" << std::endl;
-				stringStream << "  ADDRESS:   The 4 byte IP address. Example: 0xC0A8009B" << std::endl;
+				stringStream << "  ADDRESS:   The bit position of the device. Example: 0x80" << std::endl;
 				stringStream << "  SERIAL:    The 10 to 12 character long serial number of the peer to add. Example: VBF01020304" << std::endl;
 				return stringStream.str();
 			}
@@ -468,7 +468,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 					_peers[peer->getAddress()] = peer;
 					_peersById[peer->getID()] = peer;
 					_peersMutex.unlock();
-					peer->setAddress(address); //Set address again, because otherwise IP_ADDRESS cannot be saved.
+					peer->setAddress(address); //Set address again, because otherwise it cannot be saved.
 				}
 				catch(const std::exception& ex)
 				{
