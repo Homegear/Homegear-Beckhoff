@@ -468,7 +468,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 					_peers[peer->getAddress()] = peer;
 					_peersById[peer->getID()] = peer;
 					_peersMutex.unlock();
-					peer->setAddress(address); //Set address again, because otherwise IP_ADDRESS cannot be saved.
+					peer->setAddress(address); //Set address again, because otherwise it cannot be saved.
 				}
 				catch(const std::exception& ex)
 				{
