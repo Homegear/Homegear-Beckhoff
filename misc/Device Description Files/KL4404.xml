@@ -140,6 +140,36 @@
 		          <operationType>config</operationType>
 		        </physicalNone>
 			</parameter>
+			<parameter id="FAST_MODE">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalBoolean>
+		        	<defaultValue>false</defaultValue>
+		        </logicalBoolean>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="SUPER_FAST_MODE">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalBoolean>
+		        	<defaultValue>false</defaultValue>
+		        </logicalBoolean>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
 		</configParameters>
 		<variables id="maint_ch_values--0">
 			<parameter id="UNREACH">

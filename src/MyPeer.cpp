@@ -1230,17 +1230,39 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 		}
 		else return Variable::createError(-5, "Only LEVEL and STATE are supported parameter names.");
 
-		std::vector<uint8_t> parameterData;
-		rpcParameter->convertToPacket(value, parameterData);
-		parameter.setBinaryData(parameterData);
-		if(parameter.databaseId > 0) saveParameter(parameter.databaseId, parameterData);
-		else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, valueKey, parameterData);
-		if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + valueKey + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameterData) + ".");
+		bool fastMode = false;
+		bool superFastMode = false;
+		auto configChannelIterator = configCentral.find(0);
+		if(configChannelIterator != configCentral.end())
+		{
+			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = configChannelIterator->second.find("FAST_MODE");
+			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				fastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+			}
+			parameterIterator = configChannelIterator->second.find("SUPER_FAST_MODE");
+			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				superFastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+			}
+		}
 
-		std::vector<char> states = serializeStates();
-		saveVariable(5, states);
+		if(!fastMode && !superFastMode)
+		{
+			std::vector<uint8_t> parameterData;
+			rpcParameter->convertToPacket(value, parameterData);
+			parameter.setBinaryData(parameterData);
+			if(parameter.databaseId > 0) saveParameter(parameter.databaseId, parameterData);
+			else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, valueKey, parameterData);
+			if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + valueKey + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameterData) + ".");
 
-		if(!valueKeys->empty())
+			std::vector<char> states = serializeStates();
+			saveVariable(5, states);
+		}
+
+		if(!superFastMode && !valueKeys->empty())
 		{
 			raiseEvent(_peerID, channel, valueKeys, values);
 			raiseRPCEvent(_peerID, channel, _serialNumber + ":" + std::to_string(channel), valueKeys, values);
