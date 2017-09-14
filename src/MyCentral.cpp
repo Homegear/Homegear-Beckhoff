@@ -857,13 +857,106 @@ std::shared_ptr<MyPeer> MyCentral::createPeer(uint32_t type, int32_t address, st
     return std::shared_ptr<MyPeer>();
 }
 
-void MyCentral::updatePeerAddress(uint64_t peerId, int32_t oldAddress, int32_t newAddress)
+void MyCentral::updatePeerAddresses()
 {
 	try
 	{
+		struct Pots
+		{
+			uint64_t firstPeer = 0;
+			std::list<PMyPeer> analogInputs;
+			std::list<PMyPeer> digitalInputs;
+			std::list<PMyPeer> analogOutputs;
+			std::list<PMyPeer> digitalOutputs;
+		};
+		typedef std::shared_ptr<Pots> PPots;
+
+		std::unordered_map<std::string, uint64_t> firstPeers;
+		std::unordered_map<std::string, std::set<uint64_t>> interfacePeers;
+
+		{
+			std::lock_guard<std::mutex> peersGuard(_peersMutex);
+			for(auto& peer : _peersById)
+			{
+				PMyPeer myPeer = std::dynamic_pointer_cast<MyPeer>(peer.second);
+				if(myPeer->getNextPeerId() > 0 && myPeer->getNextPeerId() == firstPeers[myPeer->getPhysicalInterfaceId()])
+				{
+					if(interfacePeers[myPeer->getPhysicalInterfaceId()].find(myPeer->getID()) == interfacePeers[myPeer->getPhysicalInterfaceId()].end())
+					{
+						firstPeers[myPeer->getPhysicalInterfaceId()] = myPeer->getID();
+					}
+					else
+					{
+						firstPeers[myPeer->getPhysicalInterfaceId()] = 0;
+					}
+				}
+				else if(firstPeers[myPeer->getPhysicalInterfaceId()] == 0) firstPeers.emplace(myPeer->getPhysicalInterfaceId(), myPeer->getID());
+				if(myPeer->getNextPeerId() > 0) interfacePeers[myPeer->getPhysicalInterfaceId()].emplace(myPeer->getNextPeerId());
+			}
+		}
+		interfacePeers.clear();
+
+		std::unordered_map<std::string, PPots> pots;
+
+		for(auto& element : firstPeers)
+		{
+			if(element.second == 0)
+			{
+				GD::out.printCritical("Critical: Address loop detected on interface " + element.first + ". Please check NEXT_PEER_ID of all peers.");
+				continue;
+			}
+
+			PPots currentPots = std::make_shared<Pots>();
+			currentPots->firstPeer = element.second;
+
+			PMyPeer peer = getPeer(element.second);
+			if(peer->isAnalog())
+			{
+				if(peer->isOutputDevice()) currentPots->analogOutputs.push_back(peer);
+				else currentPots->analogInputs.push_back(peer);
+			}
+			else
+			{
+				if(peer->isOutputDevice()) currentPots->digitalOutputs.push_back(peer);
+				else currentPots->digitalInputs.push_back(peer);
+			}
+
+			while(true)
+			{
+				if(peer->getNextPeerId() == 0) break;
+
+				PMyPeer nextPeer = getPeer(peer->getNextPeerId());
+				if(!nextPeer)
+				{
+					GD::out.printCritical("Critical: Peer " + std::to_string(peer->getID()) + " points to peer " + std::to_string(nextPeer->getID()) + ", which doesn't exist or isn't a Beckhoff peer.");
+					continue;
+				}
+				if(nextPeer->getPhysicalInterfaceId() != peer->getPhysicalInterfaceId())
+				{
+					GD::out.printCritical("Critical: Peer " + std::to_string(peer->getID()) + " points to peer " + std::to_string(nextPeer->getID()) + ", but the two peers are connected to different interfaces.");
+					continue;
+				}
+
+				if(nextPeer->isAnalog())
+				{
+					if(nextPeer->isOutputDevice()) currentPots->analogOutputs.push_back(nextPeer);
+					else currentPots->analogInputs.push_back(nextPeer);
+				}
+				else
+				{
+					if(nextPeer->isOutputDevice()) currentPots->digitalOutputs.push_back(nextPeer);
+					else currentPots->digitalInputs.push_back(nextPeer);
+				}
+
+				peer = nextPeer;
+			}
+
+			pots.emplace(element.first, currentPots);
+		}
+
 		std::shared_ptr<MyPeer> peer = getPeer(peerId);
 		if(!peer) return;
-		std::lock_guard<std::mutex> peersGuard(_peersMutex);
+
 		_peers.erase(oldAddress);
 		peer->setAddress(newAddress);
 		_peers[newAddress] = peer;

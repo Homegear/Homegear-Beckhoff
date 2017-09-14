@@ -1,12 +1,14 @@
 <homegearDevice version="1">
 	<supportedDevices>
 		<device id="Beckhoff KL1408">
-			<description>Beckhoff KL1408</description>
+			<description>8 channel 24V DC digital input</description>
 			<typeNumber>0x1408</typeNumber>
 			<minFirmwareVersion>0</minFirmwareVersion>
 		</device>
 	</supportedDevices>
-	<properties/>
+	<properties>
+		<memorySize>8</memorySize>
+	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
 			<properties>
@@ -24,13 +26,32 @@
 	<parameterGroups>
 		<configParameters id="config"/>
 		<configParameters id="maint_ch_master--0">
-			<parameter id="ADDRESS">
+			<parameter id="NEXT_PEER_ID">
 		        <properties>
-		          <label>Address (start bit)</label>
+		          <label>Next peer ID</label>
 		          <readable>true</readable>
 		          <writeable>true</writeable>
 		          <formFieldType>text</formFieldType>
 		          <formPosition>1</formPosition>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<minimumValue>0</minimumValue>
+		        	<defaultValue>0</defaultValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="ADDRESS">
+		        <properties>
+		          <label>Address (start bit)</label>
+		          <readable>true</readable>
+		          <writeable>false</writeable>
+		          <formFieldType>text</formFieldType>
+		          <formPosition>2</formPosition>
 		          <casts>
 		            <rpcBinary />
 		          </casts>

@@ -28,7 +28,7 @@ public:
 	std::shared_ptr<MyPeer> getPeer(uint64_t id);
 	std::shared_ptr<MyPeer> getPeer(int32_t address);
 	std::shared_ptr<MyPeer> getPeer(std::string serialNumber);
-	void updatePeerAddress(uint64_t peerId, int32_t oldAddress, int32_t newAddress);
+	void updatePeerAddresses();
 
 	virtual PVariable createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t deviceType, std::string serialNumber, int32_t address, int32_t firmwareVersion, std::string interfaceId);
 	virtual PVariable deleteDevice(BaseLib::PRpcClientInfo clientInfo, std::string serialNumber, int32_t flags);

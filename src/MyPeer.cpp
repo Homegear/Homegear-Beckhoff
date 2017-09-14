@@ -396,7 +396,7 @@ bool MyPeer::isAnalog()
 		if(!_rpcDevice) return false;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return false;
-		return functionIterator->second->variablesId == "analog_output_valueset" || functionIterator->second->variablesId == "analog_output_valueset_1" || functionIterator->second->variablesId == "analog_input_valueset" || functionIterator->second->variablesId == "analog_input_valueset_1";
+		return functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
 	}
 	catch(const std::exception& ex)
     {
@@ -592,6 +592,16 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 
 		for(std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator i = configCentral.begin(); i != configCentral.end(); ++i)
 		{
+			if(i->first == 0)
+			{
+				std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = i->second.find("NEXT_PEER_ID");
+				if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+				{
+					std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+					_nextPeerId = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue64;
+				}
+			}
+
 			int32_t interval = 0;
 			int32_t decimalPlaces = 0;
 			int32_t inputMin = 0;
@@ -954,11 +964,15 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 				BaseLib::Systems::RpcConfigurationParameter& parameter = parameterIterator->second;
 				if(!parameter.rpcParameter) continue;
 
-				if(channel == 0 && i->first == "ADDRESS")
+				if(channel == 0 && i->first == "NEXT_PEER_ID")
 				{
 					std::shared_ptr<MyCentral> central = std::dynamic_pointer_cast<MyCentral>(getCentral());
 					if(!central) continue;
-					if(i->second->integerValue != _address) central->updatePeerAddress(_peerID, _address, i->second->integerValue);
+					if(i->second->integerValue64 != _nextPeerId)
+					{
+						_nextPeerId = i->second->integerValue64;
+						central->updatePeerAddresses();
+					}
 				}
 				std::vector<uint8_t> parameterData;
 				parameter.rpcParameter->convertToPacket(i->second, parameterData);
