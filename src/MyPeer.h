@@ -41,6 +41,8 @@ public:
 	bool isOutputDevice();
 	bool isAnalog();
 	uint64_t getNextPeerId() { return _nextPeerId; }
+	void setNextPeerId(uint64_t value);
+	int32_t getMemorySize() { if(!_rpcDevice) return -1; return _rpcDevice->memorySize; }
 	int32_t getBitSize() { if(_bitSize == -1) getStorageSize(); return _bitSize; }
 	int32_t getRegisterSize() { if(_registerSize == -1) getStorageSize(); return _registerSize; }
 

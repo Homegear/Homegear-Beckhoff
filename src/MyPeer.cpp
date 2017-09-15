@@ -128,10 +128,45 @@ void MyPeer::homegearShuttingDown()
 	}
 }
 
+void MyPeer::setNextPeerId(uint64_t value)
+{
+	try
+	{
+		_nextPeerId = value;
+		std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator channelIterator = configCentral.find(0);
+		if(channelIterator == configCentral.end()) return;
+		std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("NEXT_PEER_ID");
+		if(parameterIterator != channelIterator->second.end())
+		{
+			std::vector<uint8_t> parameterData;
+			parameterIterator->second.rpcParameter->convertToPacket(BaseLib::PVariable(new BaseLib::Variable(value)), parameterData);
+			parameterIterator->second.setBinaryData(parameterData);
+			if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
+			else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "NEXT_PEER_ID", parameterData);
+			GD::out.printInfo("Info: Parameter NEXT_PEER_ID of peer " + std::to_string(_peerID) + " and channel 0 was set to " + std::to_string(value) + ".");
+			raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
+		}
+		std::shared_ptr<MyCentral> central = std::dynamic_pointer_cast<MyCentral>(getCentral());
+	}
+	catch(const std::exception& ex)
+	{
+		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+	}
+	catch(BaseLib::Exception& ex)
+	{
+		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+	}
+	catch(...)
+	{
+		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+	}
+}
+
 void MyPeer::setAddress(int32_t value)
 {
 	try
 	{
+		if(_address == value) return;
 		Peer::setAddress(value);
 		_bitSize = -1;
 		_registerSize = -1;
@@ -170,7 +205,7 @@ bool MyPeer::isOutputDevice()
 		if(!_rpcDevice) return true;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return true;
-		return functionIterator->second->type == "Output";
+		return ((_deviceType & 0x2000) == 0x2000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->type == "Output";
 	}
 	catch(const std::exception& ex)
 	{
@@ -396,7 +431,7 @@ bool MyPeer::isAnalog()
 		if(!_rpcDevice) return false;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return false;
-		return functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
+		return ((_deviceType & 0x3000) == 0x3000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
 	}
 	catch(const std::exception& ex)
     {
@@ -968,7 +1003,7 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 				{
 					std::shared_ptr<MyCentral> central = std::dynamic_pointer_cast<MyCentral>(getCentral());
 					if(!central) continue;
-					if(i->second->integerValue64 != _nextPeerId)
+					if((uint64_t)i->second->integerValue64 != _nextPeerId)
 					{
 						_nextPeerId = i->second->integerValue64;
 						central->updatePeerAddresses();

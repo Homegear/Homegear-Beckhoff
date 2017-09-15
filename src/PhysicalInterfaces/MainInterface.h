@@ -21,6 +21,10 @@ public:
 	void enableOutputs() { _outputsEnabled = true; }
 	uint32_t digitalInputOffset() { return _bk9000Info.analogInputBits; }
 	uint32_t digitalOutputOffset() { return _bk9000Info.analogOutputBits; }
+	uint32_t analogInputBits() { return _bk9000Info.analogInputBits; }
+	uint32_t analogOutputBits() { return _bk9000Info.analogOutputBits; }
+	uint32_t digitalInputBits() { return _bk9000Info.digitalInputBits; }
+	uint32_t digitalOutputBits() { return _bk9000Info.digitalOutputBits; }
 
 	bool isOpen() { return !_stopped; }
 
