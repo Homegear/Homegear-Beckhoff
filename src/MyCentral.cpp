@@ -888,9 +888,11 @@ void MyCentral::updatePeerAddresses()
 
 		std::unordered_map<std::string, uint64_t> firstPeers;
 		std::unordered_map<std::string, std::set<uint64_t>> interfacePeers;
+		std::unordered_map<std::string, uint32_t> peersWithoutAddress;
 
 		{
 			std::lock_guard<std::mutex> peersGuard(_peersMutex);
+
 			for(auto& peer : _peersById)
 			{
 				PMyPeer myPeer = std::dynamic_pointer_cast<MyPeer>(peer.second);
@@ -912,6 +914,27 @@ void MyCentral::updatePeerAddresses()
 				}
 				else if(firstPeers[myPeer->getPhysicalInterface()->getID()] == 0) firstPeers[myPeer->getPhysicalInterface()->getID()] = myPeer->getID();
 				if(myPeer->getNextPeerId() > 0) interfacePeers[myPeer->getPhysicalInterface()->getID()].emplace(myPeer->getNextPeerId());
+				else
+				{
+					auto peersWithoutAddressIterator = peersWithoutAddress.find(myPeer->getPhysicalInterface()->getID());
+					if(peersWithoutAddressIterator == peersWithoutAddress.end()) peersWithoutAddress.emplace(myPeer->getPhysicalInterface()->getID(), 1);
+					else peersWithoutAddressIterator->second++;
+				}
+			}
+
+			for(auto& element : firstPeers) //Find first peer, if not found yet
+			{
+				if(element.second == 0)
+				{
+					for(auto& peer : _peersById)
+					{
+						if(interfacePeers[element.first].find(peer.first) == interfacePeers[element.first].end())
+						{
+							element.second = peer.first;
+							break;
+						}
+					}
+				}
 			}
 		}
 
@@ -929,7 +952,7 @@ void MyCentral::updatePeerAddresses()
 			PMyPeer peer = getPeer(element.second);
 			if(!peer)
 			{
-				GD::out.printCritical("Critical: Peer " + std::to_string(element.second) + " Doesn't exist. Cannot generate addresses for interface " + element.first);
+				GD::out.printCritical("Critical: Can't find first peer and can't generate addresses for interface " + element.first + ". Please recheck NEXT_PEER_ID of all peers.");
 				continue;
 			}
 			if(peer->isAnalog())
@@ -986,7 +1009,7 @@ void MyCentral::updatePeerAddresses()
 			uint32_t currentAddress = 0;
 			for(auto& peer : currentPots->analogInputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits && !GD::bl->booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
@@ -997,7 +1020,7 @@ void MyCentral::updatePeerAddresses()
 
 			for(auto& peer : currentPots->digitalInputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits && !GD::bl->booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
@@ -1009,10 +1032,9 @@ void MyCentral::updatePeerAddresses()
 			currentAddress = 0;
 			for(auto& peer : currentPots->analogOutputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits && !GD::bl->booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
-					break;
 				}
 				peer->setAddress(currentAddress);
 				currentAddress += peer->getMemorySize();
@@ -1021,20 +1043,23 @@ void MyCentral::updatePeerAddresses()
 
 			for(auto& peer : currentPots->digitalOutputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits + currentPots->digitalOutputBits)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits + currentPots->digitalOutputBits && !GD::bl->booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
-					break;
 				}
 				peer->setAddress(currentAddress);
 				currentAddress += peer->getMemorySize();
 				usedDigitalOutputBits += peer->getMemorySize();
 			}
 
-			if(!GD::bl->booting)
+
+			if(peersWithoutAddress[element.first] > 1)
 			{
-				if(usedAnalogInputBits < currentPots->analogInputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->analogInputBits) + " analog input bits but only " + std::to_string(usedAnalogInputBits) + " are used.");
-				if(usedAnalogOutputBits < currentPots->analogOutputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->analogOutputBits) + " analog output bits but only " + std::to_string(usedAnalogOutputBits) + " are used.");
+				GD::out.printWarning("Warning: " + std::to_string(peersWithoutAddress[element.first] - 1) + " peer(s) on interface " + element.first + " have/has an unset NEXT_PEER_ID. Please complete the peer configuration.");
+			}
+			else if(!GD::bl->booting)
+			{
+				if(usedAnalogInputBits + usedAnalogOutputBits < currentPots->analogInputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->analogInputBits) + " analog input and output bits but only " + std::to_string(usedAnalogInputBits + usedAnalogOutputBits) + " are used.");
 				if(usedDigitalInputBits < currentPots->digitalInputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->digitalInputBits) + " digital input bits but only " + std::to_string(usedDigitalInputBits) + " are used.");
 				if(usedDigitalOutputBits < currentPots->digitalOutputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->digitalOutputBits) + " digital output bits but only " + std::to_string(usedDigitalOutputBits) + " are used.");
 			}
