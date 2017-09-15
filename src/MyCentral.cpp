@@ -88,8 +88,8 @@ void MyCentral::loadPeers()
 			std::lock_guard<std::mutex> peersGuard(_peersMutex);
 			if(!peer->getSerialNumber().empty()) _peersBySerial[peer->getSerialNumber()] = peer;
 			_peersById[peerID] = peer;
-			_peers[peer->getAddress()] = peer;
 		}
+		updatePeerAddresses();
 		for(std::map<std::string, std::shared_ptr<MainInterface>>::iterator i = GD::physicalInterfaces.begin(); i != GD::physicalInterfaces.end(); ++i)
 		{
 			i->second->enableOutputs();
@@ -117,32 +117,6 @@ std::shared_ptr<MyPeer> MyCentral::getPeer(uint64_t id)
 		if(_peersById.find(id) != _peersById.end())
 		{
 			std::shared_ptr<MyPeer> peer(std::dynamic_pointer_cast<MyPeer>(_peersById.at(id)));
-			return peer;
-		}
-	}
-	catch(const std::exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-    return std::shared_ptr<MyPeer>();
-}
-
-std::shared_ptr<MyPeer> MyCentral::getPeer(int32_t address)
-{
-	try
-	{
-		std::lock_guard<std::mutex> peersGuard(_peersMutex);
-		if(_peers.find(address) != _peers.end())
-		{
-			std::shared_ptr<MyPeer> peer(std::dynamic_pointer_cast<MyPeer>(_peers.at(address)));
 			return peer;
 		}
 	}
@@ -205,7 +179,7 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 			for(std::map<uint64_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator i = _peersById.begin(); i != _peersById.end(); ++i)
 			{
 				std::shared_ptr<MyPeer> peer(std::dynamic_pointer_cast<MyPeer>(i->second));
-				if(peer->isOutputDevice() || senderID != peer->getPhysicalInterfaceId()) continue;
+				if(peer->isOutputDevice() || senderID != peer->getPhysicalInterface()->getID()) continue;
 				peers.push_back(peer);
 			}
 		}
@@ -323,8 +297,6 @@ void MyCentral::deletePeer(uint64_t id)
 		_peersMutex.lock();
 		if(_peersBySerial.find(peer->getSerialNumber()) != _peersBySerial.end()) _peersBySerial.erase(peer->getSerialNumber());
 		if(_peersById.find(id) != _peersById.end()) _peersById.erase(id);
-		std::unordered_map<int32_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator peerIterator = _peers.find(peer->getAddress());
-		if(peerIterator != _peers.end() && peerIterator->second->getID() == id) _peers.erase(peerIterator);
 		_peersMutex.unlock();
 		GD::out.printMessage("Removed Beckhoff BK90x0 peer " + std::to_string(peer->getID()));
 	}
@@ -350,6 +322,8 @@ std::string MyCentral::handleCliCommand(std::string command)
 	try
 	{
 		std::ostringstream stringStream;
+		std::vector<std::string> arguments;
+		bool showHelp = false;
 		if(_currentPeer)
 		{
 			if(command == "unselect" || command == "u")
@@ -363,20 +337,21 @@ std::string MyCentral::handleCliCommand(std::string command)
 		{
 			stringStream << "List of commands:" << std::endl << std::endl;
 			stringStream << "For more information about the individual command type: COMMAND help" << std::endl << std::endl;
-			stringStream << "peers create (pc)\t\tCreates a new peer" << std::endl;
-			stringStream << "peers list (ls)\t\tList all peers" << std::endl;
-			stringStream << "peers remove (pr)\tRemove a peer" << std::endl;
-			stringStream << "peers select (ps)\tSelect a peer" << std::endl;
-			stringStream << "peers setname (pn)\tName a peer" << std::endl;
-			stringStream << "send\t\tSends a raw packet" << std::endl;
-			stringStream << "unselect (u)\t\tUnselect this device" << std::endl;
+			stringStream << "peers create (pc)   Creates a new peer" << std::endl;
+			stringStream << "peers list (ls)     List all peers" << std::endl;
+			stringStream << "peers remove (pr)   Remove a peer" << std::endl;
+			stringStream << "peers select (ps)   Select a peer" << std::endl;
+			stringStream << "peers setname (pn)  Name a peer" << std::endl;
+			stringStream << "peers setnext (px)  Assigns the ID of the peer physically following in the installation to a peer" << std::endl;
+			stringStream << "send                Sends a raw packet" << std::endl;
+			stringStream << "unselect (u)        Unselect this device" << std::endl;
 			return stringStream.str();
 		}
 		if(command.compare(0, 12, "peers create") == 0 || command.compare(0, 2, "pc") == 0)
 		{
 			std::string interfaceId;
 			int32_t deviceType = 0;
-			int32_t address = 0;
+			uint64_t nextPeerId = 0;
 			std::string serial;
 
 			std::stringstream stream(command);
@@ -403,7 +378,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 				}
 				else if(index == 3 + offset)
 				{
-					address = BaseLib::Math::getNumber(element, true);
+					nextPeerId = BaseLib::Math::getNumber64(element, true);
 				}
 				else if(index == 4 + offset)
 				{
@@ -416,18 +391,18 @@ std::string MyCentral::handleCliCommand(std::string command)
 			if(index < 5 + offset)
 			{
 				stringStream << "Description: This command creates a new peer." << std::endl;
-				stringStream << "Usage: peers create INTERFACE TYPE ADDRESS SERIAL" << std::endl << std::endl;
+				stringStream << "Usage: peers create INTERFACE TYPE NEXT_PEER_ID SERIAL" << std::endl << std::endl;
 				stringStream << "Parameters:" << std::endl;
-				stringStream << "  INTERFACE: The id of the interface to associate the new device to as defined in the familie's configuration file." << std::endl;
-				stringStream << "  TYPE:      The 2 byte hexadecimal device type. Example: 0x4001" << std::endl;
-				stringStream << "  ADDRESS:   The bit position of the device. Example: 0x80" << std::endl;
-				stringStream << "  SERIAL:    The 10 to 12 character long serial number of the peer to add. Example: VBF01020304" << std::endl;
+				stringStream << "  INTERFACE:    The id of the interface to associate the new device to as defined in the familie's configuration file." << std::endl;
+				stringStream << "  TYPE:         The 2 byte hexadecimal device type. Example: 0x4001" << std::endl;
+				stringStream << "  NEXT_PEER_ID: The ID of the peer physically following in the installation (if known). If currently unknown or this is the last card, set to \"0\". Example: 14" << std::endl;
+				stringStream << "  SERIAL:       The 10 to 12 character long serial number of the peer to add. Example: VBF01020304" << std::endl;
 				return stringStream.str();
 			}
 			if(peerExists(serial)) stringStream << "A peer with this serial number is already paired to this central." << std::endl;
 			else
 			{
-				std::shared_ptr<MyPeer> peer = createPeer(deviceType, address, serial, false);
+				std::shared_ptr<MyPeer> peer = createPeer(deviceType, nextPeerId, serial, false);
 				if(!peer || !peer->getRpcDevice()) return "Device type not supported.\n";
 				try
 				{
@@ -438,10 +413,10 @@ std::string MyCentral::handleCliCommand(std::string command)
 					peer->initializeCentralConfig();
 					peer->setPhysicalInterfaceId(interfaceId);
 					_peersMutex.lock();
-					_peers[peer->getAddress()] = peer;
 					_peersById[peer->getID()] = peer;
 					_peersMutex.unlock();
-					peer->setAddress(address); //Set address again, because otherwise it cannot be saved.
+					peer->setNextPeerId(nextPeerId); //Set next peer ID again, because otherwise it cannot be saved.
+					updatePeerAddresses();
 				}
 				catch(const std::exception& ex)
 				{
@@ -462,8 +437,8 @@ std::string MyCentral::handleCliCommand(std::string command)
 				PVariable deviceDescriptions(new Variable(VariableType::tArray));
 				deviceDescriptions->arrayValue = peer->getDeviceDescriptions(nullptr, true, std::map<std::string, bool>());
 				raiseRPCNewDevices(deviceDescriptions);
-				GD::out.printMessage("Added peer 0x" + BaseLib::HelperFunctions::getHexString(peer->getID()) + ".");
-				stringStream << "Added peer " << std::to_string(peer->getID()) << " with IP address 0x" << BaseLib::HelperFunctions::getHexString(address, 8) << " and serial number " << serial << "." << std::dec << std::endl;
+				GD::out.printMessage("Added peer with ID " + std::to_string(peer->getID()) + ".");
+				stringStream << "Added peer " << std::to_string(peer->getID()) << " with ID " << std::to_string(peer->getID()) << " and serial number " << serial << "." << std::dec << std::endl;
 			}
 			return stringStream.str();
 		}
@@ -554,7 +529,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 					stringStream << "      FILTERVALUE: The id of the peer to filter (e. g. 513)." << std::endl;
 					stringStream << "  SERIAL: Filter by serial number." << std::endl;
 					stringStream << "      FILTERVALUE: The serial number of the peer to filter (e. g. JEQ0554309)." << std::endl;
-					stringStream << "  ADDRESS: Filter by saddress." << std::endl;
+					stringStream << "  ADDRESS: Filter by address." << std::endl;
 					stringStream << "      FILTERVALUE: The address of the peer to filter (e. g. 128)." << std::endl;
 					stringStream << "  NAME: Filter by name." << std::endl;
 					stringStream << "      FILTERVALUE: The part of the name to search for (e. g. \"1st floor\")." << std::endl;
@@ -573,6 +548,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 				const int32_t nameWidth = 25;
 				const int32_t serialWidth = 13;
 				const int32_t addressWidth = 7;
+				const int32_t nextIdWidth = 8;
 				const int32_t typeWidth1 = 4;
 				const int32_t typeWidth2 = 25;
 				std::string nameHeader("Name");
@@ -584,21 +560,24 @@ std::string MyCentral::handleCliCommand(std::string command)
 					<< nameHeader << bar
 					<< std::setw(serialWidth) << "Serial Number" << bar
 					<< std::setw(addressWidth) << "Address" << bar
+					<< std::setw(nextIdWidth) << "Next ID" << bar
 					<< std::setw(typeWidth1) << "Type" << bar
 					<< typeStringHeader
 					<< std::endl;
-				stringStream << "─────────┼───────────────────────────┼───────────────┼─────────┼──────┼───────────────────────────" << std::endl;
+				stringStream << "─────────┼───────────────────────────┼───────────────┼─────────┼──────────┼──────┼───────────────────────────" << std::endl;
 				stringStream << std::setfill(' ')
 					<< std::setw(idWidth) << " " << bar
 					<< std::setw(nameWidth) << " " << bar
 					<< std::setw(serialWidth) << " " << bar
 					<< std::setw(addressWidth) << " " << bar
+					<< std::setw(nextIdWidth) << " " << bar
 					<< std::setw(typeWidth1) << " " << bar
 					<< std::setw(typeWidth2)
 					<< std::endl;
 				_peersMutex.lock();
 				for(std::map<uint64_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator i = _peersById.begin(); i != _peersById.end(); ++i)
 				{
+					PMyPeer myPeer = std::dynamic_pointer_cast<MyPeer>(i->second);
 					if(filterType == "id")
 					{
 						uint64_t id = BaseLib::Math::getNumber(filterValue, false);
@@ -636,6 +615,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 					stringStream << name << bar
 						<< std::setw(serialWidth) << i->second->getSerialNumber() << bar
 						<< std::setw(addressWidth) << i->second->getAddress() << bar
+						<< std::setw(nextIdWidth) << myPeer->getNextPeerId() << bar
 						<< std::setw(typeWidth1) << BaseLib::HelperFunctions::getHexString(i->second->getDeviceType(), 4) << bar;
 					if(i->second->getRpcDevice())
 					{
@@ -653,7 +633,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 					stringStream << std::endl << std::dec;
 				}
 				_peersMutex.unlock();
-				stringStream << "─────────┴───────────────────────────┴───────────────┴─────────┴──────┴───────────────────────────" << std::endl;
+				stringStream << "─────────┴───────────────────────────┴───────────────┴─────────┴──────────┴──────┴───────────────────────────" << std::endl;
 
 				return stringStream.str();
 			}
@@ -718,6 +698,35 @@ std::string MyCentral::handleCliCommand(std::string command)
 				std::shared_ptr<MyPeer> peer = getPeer(peerID);
 				peer->setName(name);
 				stringStream << "Name set to \"" << name << "\"." << std::endl;
+			}
+			return stringStream.str();
+		}
+		else if(BaseLib::HelperFunctions::checkCliCommand(command, "peers setnext", "px", "", 2, arguments, showHelp))
+		{
+			if(showHelp)
+			{
+				stringStream << "Description: This command removes a peer." << std::endl;
+				stringStream << "Usage: peers setnext PEER_ID NEXT_PEER_ID" << std::endl << std::endl;
+				stringStream << "Parameters:" << std::endl;
+				stringStream << "  PEER_ID: The id of the peer to set the next peer for. Example: 25" << std::endl;
+				stringStream << "  NEXT_PEER_ID: The id of the peer following in the physical installation. Example: 13" << std::endl;
+				return stringStream.str();
+			}
+
+			uint64_t peerId = BaseLib::Math::getNumber64(arguments.at(0), false);
+			if(peerId == 0) return "Invalid id.\n";
+
+			uint64_t nextPeerId = BaseLib::Math::getNumber64(arguments.at(1), false);
+			if(nextPeerId == 0) return "Invalid next peer id.\n";
+
+			if(!peerExists(peerId) || !peerExists(nextPeerId)) stringStream << "At least one of the peers is not paired to this central." << std::endl;
+			else
+			{
+				PMyPeer peer = getPeer(peerId);
+				PMyPeer nextPeer = getPeer(nextPeerId);
+				peer->setNextPeerId(nextPeerId);
+				updatePeerAddresses();
+				stringStream << "NEXT_PEER_ID of peer " << peerId << " was set to " << nextPeerId << ". Address (= bit position) of peer " << nextPeerId << " now is " << nextPeer->getAddress() << "." << std::endl;
 			}
 			return stringStream.str();
 		}
@@ -835,7 +844,7 @@ std::shared_ptr<MyPeer> MyCentral::createPeer(uint32_t type, int32_t address, st
 	{
 		std::shared_ptr<MyPeer> peer(new MyPeer(_deviceId, this));
 		peer->setDeviceType(type);
-		peer->setAddress(address);
+		peer->setNextPeerId(address);
 		peer->setSerialNumber(serialNumber);
 		peer->setRpcDevice(GD::family->getRpcDevices()->find(type, 0x10, -1));
 		if(!peer->getRpcDevice()) return std::shared_ptr<MyPeer>();
@@ -857,16 +866,157 @@ std::shared_ptr<MyPeer> MyCentral::createPeer(uint32_t type, int32_t address, st
     return std::shared_ptr<MyPeer>();
 }
 
-void MyCentral::updatePeerAddress(uint64_t peerId, int32_t oldAddress, int32_t newAddress)
+void MyCentral::updatePeerAddresses()
 {
 	try
 	{
-		std::shared_ptr<MyPeer> peer = getPeer(peerId);
-		if(!peer) return;
-		std::lock_guard<std::mutex> peersGuard(_peersMutex);
-		_peers.erase(oldAddress);
-		peer->setAddress(newAddress);
-		_peers[newAddress] = peer;
+		struct Pots
+		{
+			uint64_t firstPeer = 0;
+			uint32_t analogInputBits = 0;
+			uint32_t analogOutputBits = 0;
+			uint32_t digitalInputBits = 0;
+			uint32_t digitalOutputBits = 0;
+			std::list<PMyPeer> analogInputs;
+			std::list<PMyPeer> digitalInputs;
+			std::list<PMyPeer> analogOutputs;
+			std::list<PMyPeer> digitalOutputs;
+		};
+		typedef std::shared_ptr<Pots> PPots;
+
+		std::unordered_map<std::string, uint64_t> firstPeers;
+		std::unordered_map<std::string, std::set<uint64_t>> interfacePeers;
+
+		{
+			std::lock_guard<std::mutex> peersGuard(_peersMutex);
+			for(auto& peer : _peersById)
+			{
+				PMyPeer myPeer = std::dynamic_pointer_cast<MyPeer>(peer.second);
+				if(myPeer->getNextPeerId() == myPeer->getID())
+				{
+					GD::out.printCritical("Critical: Peer " + std::to_string(myPeer->getID()) + " points to itself. Please set NEXT_PEER_ID to a valid value.");
+					continue;
+				}
+				if(myPeer->getNextPeerId() > 0 && myPeer->getNextPeerId() == firstPeers[myPeer->getPhysicalInterface()->getID()])
+				{
+					if(interfacePeers[myPeer->getPhysicalInterface()->getID()].find(myPeer->getID()) == interfacePeers[myPeer->getPhysicalInterface()->getID()].end())
+					{
+						firstPeers[myPeer->getPhysicalInterface()->getID()] = myPeer->getID();
+					}
+					else
+					{
+						firstPeers[myPeer->getPhysicalInterface()->getID()] = 0;
+					}
+				}
+				else if(firstPeers[myPeer->getPhysicalInterface()->getID()] == 0) firstPeers[myPeer->getPhysicalInterface()->getID()] = myPeer->getID();
+				if(myPeer->getNextPeerId() > 0) interfacePeers[myPeer->getPhysicalInterface()->getID()].emplace(myPeer->getNextPeerId());
+			}
+		}
+
+		for(auto& element : firstPeers)
+		{
+			if(element.second == 0)
+			{
+				if(interfacePeers[element.first].size() > 1) GD::out.printCritical("Critical: Address loop detected on interface " + element.first + ". Please check NEXT_PEER_ID of all peers.");
+				continue;
+			}
+
+			PPots currentPots = std::make_shared<Pots>();
+			currentPots->firstPeer = element.second;
+
+			PMyPeer peer = getPeer(element.second);
+			if(peer->isAnalog())
+			{
+				if(peer->isOutputDevice()) currentPots->analogOutputs.push_back(peer);
+				else currentPots->analogInputs.push_back(peer);
+			}
+			else
+			{
+				if(peer->isOutputDevice()) currentPots->digitalOutputs.push_back(peer);
+				else currentPots->digitalInputs.push_back(peer);
+			}
+			currentPots->analogInputBits = peer->getPhysicalInterface()->analogInputBits();
+			currentPots->analogOutputBits = peer->getPhysicalInterface()->analogOutputBits();
+			currentPots->digitalInputBits = peer->getPhysicalInterface()->digitalInputBits();
+			currentPots->digitalOutputBits = peer->getPhysicalInterface()->digitalOutputBits();
+
+			int32_t maxIterations = interfacePeers[element.first].size() + 1;
+			for(int32_t i = 0; i < maxIterations; i++) //Limit number of iterations
+			{
+				if(peer->getNextPeerId() == 0) break;
+
+				PMyPeer nextPeer = getPeer(peer->getNextPeerId());
+				if(!nextPeer)
+				{
+					GD::out.printCritical("Critical: Peer " + std::to_string(peer->getID()) + " points to peer " + std::to_string(nextPeer->getID()) + ", which doesn't exist or isn't a Beckhoff peer.");
+					continue;
+				}
+				if(nextPeer->getPhysicalInterface()->getID() != peer->getPhysicalInterface()->getID())
+				{
+					GD::out.printCritical("Critical: Peer " + std::to_string(peer->getID()) + " points to peer " + std::to_string(nextPeer->getID()) + ", but the two peers are connected to different interfaces.");
+					continue;
+				}
+
+				if(nextPeer->isAnalog())
+				{
+					if(nextPeer->isOutputDevice()) currentPots->analogOutputs.push_back(nextPeer);
+					else currentPots->analogInputs.push_back(nextPeer);
+				}
+				else
+				{
+					if(nextPeer->isOutputDevice()) currentPots->digitalOutputs.push_back(nextPeer);
+					else currentPots->digitalInputs.push_back(nextPeer);
+				}
+
+				peer = nextPeer;
+			}
+
+			uint32_t currentAddress = 0;
+			for(auto& peer : currentPots->analogInputs)
+			{
+				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits)
+				{
+					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
+					break;
+				}
+				peer->setAddress(currentAddress);
+				currentAddress += peer->getMemorySize();
+			}
+
+			for(auto& peer : currentPots->digitalInputs)
+			{
+				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits)
+				{
+					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
+					break;
+				}
+				peer->setAddress(currentAddress);
+				currentAddress += peer->getMemorySize();
+			}
+
+			currentAddress = 0;
+			for(auto& peer : currentPots->analogOutputs)
+			{
+				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits)
+				{
+					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
+					break;
+				}
+				peer->setAddress(currentAddress);
+				currentAddress += peer->getMemorySize();
+			}
+
+			for(auto& peer : currentPots->digitalOutputs)
+			{
+				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits + currentPots->digitalOutputBits)
+				{
+					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
+					break;
+				}
+				peer->setAddress(currentAddress);
+				currentAddress += peer->getMemorySize();
+			}
+		}
 	}
 	catch(const std::exception& ex)
 	{
@@ -896,13 +1046,13 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 		{
 			peer->save(true, true, false);
 			peer->initializeCentralConfig();
-			peer->setAddress(address); //Needs to be set again, so it is saved to CONFIG_PARAMETER IP_ADDRESS
 			peer->setPhysicalInterfaceId(interfaceId);
 			_peersMutex.lock();
-			_peers[peer->getAddress()] = peer;
 			_peersById[peer->getID()] = peer;
 			_peersBySerial[peer->getSerialNumber()] = peer;
 			_peersMutex.unlock();
+
+			updatePeerAddresses();
 		}
 		catch(const std::exception& ex)
 		{
@@ -923,7 +1073,7 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 		PVariable deviceDescriptions(new Variable(VariableType::tArray));
 		deviceDescriptions->arrayValue = peer->getDeviceDescriptions(clientInfo, true, std::map<std::string, bool>());
 		raiseRPCNewDevices(deviceDescriptions);
-		GD::out.printMessage("Added peer 0x" + BaseLib::HelperFunctions::getHexString(peer->getID()) + ".");
+		GD::out.printMessage("Added peer " + std::to_string(peer->getID()) + ".");
 
 		return PVariable(new Variable((uint32_t)peer->getID()));
 	}

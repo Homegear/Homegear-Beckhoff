@@ -40,6 +40,9 @@ public:
 
 	bool isOutputDevice();
 	bool isAnalog();
+	uint64_t getNextPeerId() { return _nextPeerId; }
+	void setNextPeerId(uint64_t value);
+	int32_t getMemorySize() { if(!_rpcDevice) return -1; return _rpcDevice->memorySize; }
 	int32_t getBitSize() { if(_bitSize == -1) getStorageSize(); return _bitSize; }
 	int32_t getRegisterSize() { if(_registerSize == -1) getStorageSize(); return _registerSize; }
 
@@ -83,6 +86,7 @@ protected:
 
 	bool _shuttingDown = false;
 	std::shared_ptr<MainInterface> _physicalInterface;
+	uint64_t _nextPeerId = 0;
 	int32_t _bitSize = -1;
 	int32_t _registerSize = -1;
 	std::mutex _lastDataMutex;
@@ -121,6 +125,8 @@ protected:
 		virtual bool getParamsetHook2(PRpcClientInfo clientInfo, PParameter parameter, uint32_t channel, PVariable parameters);
 	// }}}
 };
+
+typedef std::shared_ptr<MyPeer> PMyPeer;
 
 }
 
