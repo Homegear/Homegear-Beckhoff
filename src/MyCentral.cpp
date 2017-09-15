@@ -378,7 +378,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 				}
 				else if(index == 3 + offset)
 				{
-					nextPeerId = BaseLib::Math::getNumber64(element, true);
+					nextPeerId = BaseLib::Math::getNumber64(element);
 				}
 				else if(index == 4 + offset)
 				{
@@ -717,16 +717,18 @@ std::string MyCentral::handleCliCommand(std::string command)
 			if(peerId == 0) return "Invalid id.\n";
 
 			uint64_t nextPeerId = BaseLib::Math::getNumber64(arguments.at(1), false);
-			if(nextPeerId == 0) return "Invalid next peer id.\n";
 
-			if(!peerExists(peerId) || !peerExists(nextPeerId)) stringStream << "At least one of the peers is not paired to this central." << std::endl;
+			if(!peerExists(peerId) || (nextPeerId != 0 && !peerExists(nextPeerId))) stringStream << "At least one of the peers is not paired to this central." << std::endl;
 			else
 			{
 				PMyPeer peer = getPeer(peerId);
-				PMyPeer nextPeer = getPeer(nextPeerId);
+				PMyPeer nextPeer;
+				if(nextPeerId != 0) nextPeer = getPeer(nextPeerId);
 				peer->setNextPeerId(nextPeerId);
 				updatePeerAddresses();
-				stringStream << "NEXT_PEER_ID of peer " << peerId << " was set to " << nextPeerId << ". Address (= bit position) of peer " << nextPeerId << " now is " << nextPeer->getAddress() << "." << std::endl;
+				stringStream << "NEXT_PEER_ID of peer " << peerId << " was set to " << nextPeerId << ".";
+				if(nextPeerId != 0) stringStream << " Address (= bit position) of peer " << nextPeerId << " now is " << nextPeer->getAddress() << ".";
+				stringStream << std::endl;
 			}
 			return stringStream.str();
 		}
@@ -925,6 +927,11 @@ void MyCentral::updatePeerAddresses()
 			currentPots->firstPeer = element.second;
 
 			PMyPeer peer = getPeer(element.second);
+			if(!peer)
+			{
+				GD::out.printCritical("Critical: Peer " + std::to_string(element.second) + " Doesn't exist. Cannot generate addresses for interface " + element.first);
+				continue;
+			}
 			if(peer->isAnalog())
 			{
 				if(peer->isOutputDevice()) currentPots->analogOutputs.push_back(peer);
@@ -940,6 +947,11 @@ void MyCentral::updatePeerAddresses()
 			currentPots->digitalInputBits = peer->getPhysicalInterface()->digitalInputBits();
 			currentPots->digitalOutputBits = peer->getPhysicalInterface()->digitalOutputBits();
 
+			uint32_t usedAnalogInputBits = 0;
+			uint32_t usedAnalogOutputBits = 0;
+			uint32_t usedDigitalInputBits = 0;
+			uint32_t usedDigitalOutputBits = 0;
+
 			int32_t maxIterations = interfacePeers[element.first].size() + 1;
 			for(int32_t i = 0; i < maxIterations; i++) //Limit number of iterations
 			{
@@ -948,7 +960,7 @@ void MyCentral::updatePeerAddresses()
 				PMyPeer nextPeer = getPeer(peer->getNextPeerId());
 				if(!nextPeer)
 				{
-					GD::out.printCritical("Critical: Peer " + std::to_string(peer->getID()) + " points to peer " + std::to_string(nextPeer->getID()) + ", which doesn't exist or isn't a Beckhoff peer.");
+					GD::out.printCritical("Critical: Peer " + std::to_string(peer->getID()) + " points to peer " + std::to_string(peer->getNextPeerId()) + ", which doesn't exist or isn't a Beckhoff peer.");
 					continue;
 				}
 				if(nextPeer->getPhysicalInterface()->getID() != peer->getPhysicalInterface()->getID())
@@ -977,10 +989,10 @@ void MyCentral::updatePeerAddresses()
 				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
-					break;
 				}
 				peer->setAddress(currentAddress);
 				currentAddress += peer->getMemorySize();
+				usedAnalogInputBits += peer->getMemorySize();
 			}
 
 			for(auto& peer : currentPots->digitalInputs)
@@ -988,10 +1000,10 @@ void MyCentral::updatePeerAddresses()
 				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
-					break;
 				}
 				peer->setAddress(currentAddress);
 				currentAddress += peer->getMemorySize();
+				usedDigitalInputBits += peer->getMemorySize();
 			}
 
 			currentAddress = 0;
@@ -1004,6 +1016,7 @@ void MyCentral::updatePeerAddresses()
 				}
 				peer->setAddress(currentAddress);
 				currentAddress += peer->getMemorySize();
+				usedAnalogOutputBits += peer->getMemorySize();
 			}
 
 			for(auto& peer : currentPots->digitalOutputs)
@@ -1015,6 +1028,15 @@ void MyCentral::updatePeerAddresses()
 				}
 				peer->setAddress(currentAddress);
 				currentAddress += peer->getMemorySize();
+				usedDigitalOutputBits += peer->getMemorySize();
+			}
+
+			if(!GD::bl->booting)
+			{
+				if(usedAnalogInputBits < currentPots->analogInputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->analogInputBits) + " analog input bits but only " + std::to_string(usedAnalogInputBits) + " are used.");
+				if(usedAnalogOutputBits < currentPots->analogOutputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->analogOutputBits) + " analog output bits but only " + std::to_string(usedAnalogOutputBits) + " are used.");
+				if(usedDigitalInputBits < currentPots->digitalInputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->digitalInputBits) + " digital input bits but only " + std::to_string(usedDigitalInputBits) + " are used.");
+				if(usedDigitalOutputBits < currentPots->digitalOutputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->digitalOutputBits) + " digital output bits but only " + std::to_string(usedDigitalOutputBits) + " are used.");
 			}
 		}
 	}
