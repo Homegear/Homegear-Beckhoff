@@ -1,12 +1,14 @@
 <homegearDevice version="1">
 	<supportedDevices>
 		<device id="Beckhoff KL4001">
-			<description>Beckhoff KL4001</description>
+			<description>1-channel 0-10V analog output</description>
 			<typeNumber>0x4001</typeNumber>
 			<minFirmwareVersion>0</minFirmwareVersion>
 		</device>
 	</supportedDevices>
-	<properties/>
+	<properties>
+		<memorySize>16</memorySize>
+	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
 			<properties>
@@ -24,9 +26,9 @@
 	<parameterGroups>
 		<configParameters id="config"/>
 		<configParameters id="maint_ch_master--0">
-			<parameter id="ADDRESS">
+			<parameter id="NEXT_PEER_ID">
 		        <properties>
-		          <label>Address (start bit)</label>
+		          <label>Next peer ID</label>
 		          <readable>true</readable>
 		          <writeable>true</writeable>
 		          <formFieldType>text</formFieldType>
@@ -37,8 +39,57 @@
 		        </properties>
 		        <logicalInteger>
 		        	<minimumValue>0</minimumValue>
+		        	<defaultValue>0</defaultValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="ADDRESS">
+		        <properties>
+		          <label>Address (start bit)</label>
+		          <readable>true</readable>
+		          <writeable>false</writeable>
+		          <formFieldType>text</formFieldType>
+		          <formPosition>2</formPosition>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<minimumValue>0</minimumValue>
 		        	<maximumValue>4095</maximumValue>
 		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="FAST_MODE">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalBoolean>
+		        	<defaultValue>false</defaultValue>
+		        </logicalBoolean>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="SUPER_FAST_MODE">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalBoolean>
+		        	<defaultValue>false</defaultValue>
+		        </logicalBoolean>
 		        <physicalNone>
 		          <operationType>config</operationType>
 		        </physicalNone>

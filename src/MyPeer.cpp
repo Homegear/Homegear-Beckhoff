@@ -1,31 +1,4 @@
-/* Copyright 2013-2017 Sathya Laufer
- *
- * Homegear is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * Homegear is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with Homegear.  If not, see <http://www.gnu.org/licenses/>.
- *
- * In addition, as a special exception, the copyright holders give
- * permission to link the code of portions of this program with the
- * OpenSSL library under certain conditions as described in each
- * individual source file, and distribute linked combinations
- * including the two.
- * You must obey the GNU General Public License in all respects
- * for all of the code used other than OpenSSL.  If you modify
- * file(s) with this exception, you may extend this exception to your
- * version of the file(s), but you are not obligated to do so.  If you
- * do not wish to do so, delete this exception statement from your
- * version.  If you delete this exception statement from all source
- * files in the program, then also delete it here.
- */
+/* Copyright 2013-2017 Homegear UG (haftungsbeschränkt) */
 
 #include "MyPeer.h"
 
@@ -155,10 +128,45 @@ void MyPeer::homegearShuttingDown()
 	}
 }
 
+void MyPeer::setNextPeerId(uint64_t value)
+{
+	try
+	{
+		_nextPeerId = value;
+		std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator channelIterator = configCentral.find(0);
+		if(channelIterator == configCentral.end()) return;
+		std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("NEXT_PEER_ID");
+		if(parameterIterator != channelIterator->second.end())
+		{
+			std::vector<uint8_t> parameterData;
+			parameterIterator->second.rpcParameter->convertToPacket(BaseLib::PVariable(new BaseLib::Variable(value)), parameterData);
+			parameterIterator->second.setBinaryData(parameterData);
+			if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
+			else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "NEXT_PEER_ID", parameterData);
+			GD::out.printInfo("Info: Parameter NEXT_PEER_ID of peer " + std::to_string(_peerID) + " and channel 0 was set to " + std::to_string(value) + ".");
+			raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
+		}
+		std::shared_ptr<MyCentral> central = std::dynamic_pointer_cast<MyCentral>(getCentral());
+	}
+	catch(const std::exception& ex)
+	{
+		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+	}
+	catch(BaseLib::Exception& ex)
+	{
+		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+	}
+	catch(...)
+	{
+		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+	}
+}
+
 void MyPeer::setAddress(int32_t value)
 {
 	try
 	{
+		if(_address == value) return;
 		Peer::setAddress(value);
 		_bitSize = -1;
 		_registerSize = -1;
@@ -197,7 +205,7 @@ bool MyPeer::isOutputDevice()
 		if(!_rpcDevice) return true;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return true;
-		return functionIterator->second->type == "Output";
+		return ((_deviceType & 0x2000) == 0x2000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->type == "Output";
 	}
 	catch(const std::exception& ex)
 	{
@@ -423,7 +431,7 @@ bool MyPeer::isAnalog()
 		if(!_rpcDevice) return false;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return false;
-		return functionIterator->second->variablesId == "analog_output_valueset" || functionIterator->second->variablesId == "analog_output_valueset_1" || functionIterator->second->variablesId == "analog_input_valueset" || functionIterator->second->variablesId == "analog_input_valueset_1";
+		return ((_deviceType & 0x3000) == 0x3000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
 	}
 	catch(const std::exception& ex)
     {
@@ -619,6 +627,16 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 
 		for(std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator i = configCentral.begin(); i != configCentral.end(); ++i)
 		{
+			if(i->first == 0)
+			{
+				std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = i->second.find("NEXT_PEER_ID");
+				if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+				{
+					std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+					_nextPeerId = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue64;
+				}
+			}
+
 			int32_t interval = 0;
 			int32_t decimalPlaces = 0;
 			int32_t inputMin = 0;
@@ -981,11 +999,15 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 				BaseLib::Systems::RpcConfigurationParameter& parameter = parameterIterator->second;
 				if(!parameter.rpcParameter) continue;
 
-				if(channel == 0 && i->first == "ADDRESS")
+				if(channel == 0 && i->first == "NEXT_PEER_ID")
 				{
 					std::shared_ptr<MyCentral> central = std::dynamic_pointer_cast<MyCentral>(getCentral());
 					if(!central) continue;
-					if(i->second->integerValue != _address) central->updatePeerAddress(_peerID, _address, i->second->integerValue);
+					if((uint64_t)i->second->integerValue64 != _nextPeerId)
+					{
+						_nextPeerId = i->second->integerValue64;
+						central->updatePeerAddresses();
+					}
 				}
 				std::vector<uint8_t> parameterData;
 				parameter.rpcParameter->convertToPacket(i->second, parameterData);
@@ -1257,17 +1279,40 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 		}
 		else return Variable::createError(-5, "Only LEVEL and STATE are supported parameter names.");
 
+		bool fastMode = false;
+		bool superFastMode = false;
+		auto configChannelIterator = configCentral.find(0);
+		if(configChannelIterator != configCentral.end())
+		{
+			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = configChannelIterator->second.find("FAST_MODE");
+			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				fastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+			}
+			parameterIterator = configChannelIterator->second.find("SUPER_FAST_MODE");
+			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+			{
+				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+				superFastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+			}
+		}
+
+
 		std::vector<uint8_t> parameterData;
 		rpcParameter->convertToPacket(value, parameterData);
 		parameter.setBinaryData(parameterData);
-		if(parameter.databaseId > 0) saveParameter(parameter.databaseId, parameterData);
-		else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, valueKey, parameterData);
-		if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + valueKey + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameterData) + ".");
+		if(!fastMode && !superFastMode)
+		{
+			if(parameter.databaseId > 0) saveParameter(parameter.databaseId, parameterData);
+			else saveParameter(0, ParameterGroup::Type::Enum::variables, channel, valueKey, parameterData);
+			if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + valueKey + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channel) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameterData) + ".");
 
-		std::vector<char> states = serializeStates();
-		saveVariable(5, states);
+			std::vector<char> states = serializeStates();
+			saveVariable(5, states);
+		}
 
-		if(!valueKeys->empty())
+		if(!superFastMode && !valueKeys->empty())
 		{
 			raiseEvent(_peerID, channel, valueKeys, values);
 			raiseRPCEvent(_peerID, channel, _serialNumber + ":" + std::to_string(channel), valueKeys, values);
