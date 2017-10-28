@@ -901,6 +901,8 @@ void MyCentral::updatePeerAddresses()
 					GD::out.printCritical("Critical: Peer " + std::to_string(myPeer->getID()) + " points to itself. Please set NEXT_PEER_ID to a valid value.");
 					continue;
 				}
+                auto firstPeersIterator = firstPeers.find(myPeer->getPhysicalInterface()->getID());
+                if(firstPeersIterator == firstPeers.end()) firstPeers.emplace(myPeer->getPhysicalInterface()->getID(), 0);
 				if(myPeer->getNextPeerId() > 0 && myPeer->getNextPeerId() == firstPeers[myPeer->getPhysicalInterface()->getID()])
 				{
 					if(interfacePeers[myPeer->getPhysicalInterface()->getID()].find(myPeer->getID()) == interfacePeers[myPeer->getPhysicalInterface()->getID()].end())
