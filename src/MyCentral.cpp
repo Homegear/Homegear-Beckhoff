@@ -399,6 +399,9 @@ std::string MyCentral::handleCliCommand(std::string command)
 				stringStream << "  SERIAL:       The 10 to 12 character long serial number of the peer to add. Example: VBF01020304" << std::endl;
 				return stringStream.str();
 			}
+
+            if(GD::physicalInterfaces.find(interfaceId) == GD::physicalInterfaces.end()) return "Unknown physical interface.\n";
+
 			if(peerExists(serial)) stringStream << "A peer with this serial number is already paired to this central." << std::endl;
 			else
 			{
@@ -896,6 +899,7 @@ void MyCentral::updatePeerAddresses()
 			for(auto& peer : _peersById)
 			{
 				PMyPeer myPeer = std::dynamic_pointer_cast<MyPeer>(peer.second);
+				if(!myPeer) continue;
 				if(myPeer->getNextPeerId() == myPeer->getID())
 				{
 					GD::out.printCritical("Critical: Peer " + std::to_string(myPeer->getID()) + " points to itself. Please set NEXT_PEER_ID to a valid value.");
@@ -1087,6 +1091,8 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 	{
 		if(serialNumber.size() < 10 || serialNumber.size() > 12) return Variable::createError(-1, "The serial number needs to have a size between 10 and 12.");
 		if(peerExists(serialNumber)) return Variable::createError(-5, "This peer is already paired to this central.");
+
+        if(GD::physicalInterfaces.find(interfaceId) == GD::physicalInterfaces.end()) return Variable::createError(-6, "Unknown physical interface.");
 
 		std::shared_ptr<MyPeer> peer = createPeer(deviceType, address, serialNumber, false);
 		if(!peer || !peer->getRpcDevice()) return Variable::createError(-6, "Unknown device type.");
