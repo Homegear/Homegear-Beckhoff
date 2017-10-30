@@ -7,7 +7,7 @@
 		</device>
 	</supportedDevices>
 	<properties>
-		<memorySize>8</memorySize>
+		<memorySize>4</memorySize>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
@@ -17,7 +17,7 @@
 			<configParameters>maint_ch_master--0</configParameters>
 			<variables>maint_ch_values--0</variables>
 		</function>
-		<function channel="1" type="Input" channelCount="8">
+		<function channel="1" type="Input" channelCount="4">
 			<properties/>
 			<configParameters>config</configParameters>
 			<variables>digital_input_valueset</variables>
