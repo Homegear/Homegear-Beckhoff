@@ -5,6 +5,11 @@
 			<typeNumber>0x2602</typeNumber>
 			<minFirmwareVersion>0</minFirmwareVersion>
 		</device>
+		<device id="Beckhoff KL2622">
+			<description>2 channel 230V AC/30V DC 5A digital relais output</description>
+			<typeNumber>0x2622</typeNumber>
+			<minFirmwareVersion>0</minFirmwareVersion>
+		</device>
 	</supportedDevices>
 	<properties>
 		<memorySize>2</memorySize>
