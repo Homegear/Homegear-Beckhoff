@@ -12,6 +12,7 @@ MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterface
 	_out.init(GD::bl);
 	_out.setPrefix(GD::out.getPrefix() + "Beckhoff BK90x0 \"" + settings->id + "\": ");
 
+	memset(&_bk9000Info, 0, sizeof(_bk9000Info));
 	_modbus = nullptr;
 	_outputsEnabled = false;
 

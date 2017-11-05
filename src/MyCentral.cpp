@@ -627,7 +627,8 @@ std::string MyCentral::handleCliCommand(std::string command)
 							typeID.resize(typeWidth2 - 3);
 							typeID += "...";
 						}
-						stringStream << std::setw(typeWidth2) << typeID;
+						else typeID.resize(typeWidth2, ' ');
+						stringStream << typeID << bar;
 					}
 					else stringStream << std::setw(typeWidth2);
 					stringStream << std::endl << std::dec;
@@ -902,8 +903,8 @@ void MyCentral::updatePeerAddresses()
 					continue;
 				}
                 auto firstPeersIterator = firstPeers.find(myPeer->getPhysicalInterface()->getID());
-                if(firstPeersIterator == firstPeers.end()) firstPeers.emplace(myPeer->getPhysicalInterface()->getID(), 0);
-				if(myPeer->getNextPeerId() > 0 && myPeer->getNextPeerId() == firstPeers[myPeer->getPhysicalInterface()->getID()])
+                if(firstPeersIterator == firstPeers.end()) firstPeersIterator = firstPeers.emplace(myPeer->getPhysicalInterface()->getID(), 0).first;
+				if(myPeer->getNextPeerId() > 0 && myPeer->getNextPeerId() == firstPeersIterator->second)
 				{
 					if(interfacePeers[myPeer->getPhysicalInterface()->getID()].find(myPeer->getID()) == interfacePeers[myPeer->getPhysicalInterface()->getID()].end())
 					{
@@ -914,7 +915,7 @@ void MyCentral::updatePeerAddresses()
 						firstPeers[myPeer->getPhysicalInterface()->getID()] = 0;
 					}
 				}
-				else if(firstPeers[myPeer->getPhysicalInterface()->getID()] == 0) firstPeers[myPeer->getPhysicalInterface()->getID()] = myPeer->getID();
+				else if(firstPeersIterator->second == 0) firstPeers[myPeer->getPhysicalInterface()->getID()] = myPeer->getID();
 				if(myPeer->getNextPeerId() > 0) interfacePeers[myPeer->getPhysicalInterface()->getID()].emplace(myPeer->getNextPeerId());
 				else
 				{
