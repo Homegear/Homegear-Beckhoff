@@ -12,6 +12,7 @@ MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterface
 	_out.init(GD::bl);
 	_out.setPrefix(GD::out.getPrefix() + "Beckhoff BK90x0 \"" + settings->id + "\": ");
 
+	memset(&_bk9000Info, 0, sizeof(_bk9000Info));
 	_modbus = nullptr;
 	_outputsEnabled = false;
 
@@ -82,9 +83,9 @@ void MainInterface::stopListening()
 
 void MainInterface::init()
 {
+	std::lock_guard<std::mutex> modbusGuard(_modbusMutex);
 	try
     {
-		std::lock_guard<std::mutex> modbusGuard(_modbusMutex);
 		if(_modbus)
 		{
 			modbus_close(_modbus);
@@ -170,6 +171,7 @@ void MainInterface::init()
 
         _out.printInfo("Info: Connected to BK90x0. ID: " + std::string(_bk9000Info.busCouplerId, 12) + ", analog input bits: " + std::to_string(_bk9000Info.analogInputBits) + ", analog output bits: " + std::to_string(_bk9000Info.analogOutputBits) + ", digital input bits: " + std::to_string(_bk9000Info.digitalInputBits) + ", digital output bits: " + std::to_string(_bk9000Info.digitalOutputBits));
         _stopped = false;
+        return;
     }
     catch(const std::exception& ex)
     {
@@ -182,6 +184,11 @@ void MainInterface::init()
     catch(...)
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
+    }
+    if(_modbus)
+    {
+        modbus_free(_modbus);
+        _modbus = nullptr;
     }
 }
 
@@ -248,7 +255,7 @@ void MainInterface::listen()
 				timeToSleep = (_settings->interval * 1000) - (endTime - startTime);
 				if(timeToSleep < 500) timeToSleep = 500;
 				std::this_thread::sleep_for(std::chrono::microseconds(timeToSleep));
-				startTime = endTime;
+				startTime = BaseLib::HelperFunctions::getTimeMicroseconds();
 			}
 			catch(const std::exception& ex)
 			{
