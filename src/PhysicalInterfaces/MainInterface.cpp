@@ -106,12 +106,23 @@ void MainInterface::init()
 			return;
 		}
 
-		std::vector<uint16_t> infoBuffer(sizeof(_bk9000Info) / 2);
+		std::vector<uint16_t> infoBuffer(sizeof(_bk9000Info) / 2); //Size is an even number so division by 2 works
         memset(&_bk9000Info, 0, sizeof(_bk9000Info));
 		try
 		{
 			_modbus->readHoldingRegisters(0x1000, infoBuffer, infoBuffer.size());
-			memcpy(&_bk9000Info, infoBuffer.data(), sizeof(_bk9000Info));
+            for(int32_t i = 0; i < 7; i++)
+            {
+                _bk9000Info.busCouplerId[i * 2] = (char)(uint8_t)(infoBuffer[i] & 0xFF);
+                _bk9000Info.busCouplerId[(i * 2) + 1] = (char)(uint8_t)(infoBuffer[i] >> 8);
+            }
+            _bk9000Info.spsInterface = infoBuffer[10];
+            _bk9000Info.diag = infoBuffer[11];
+            _bk9000Info.status = infoBuffer[12];
+            _bk9000Info.analogOutputBits = infoBuffer[16];
+            _bk9000Info.analogInputBits = infoBuffer[17];
+            _bk9000Info.digitalOutputBits = infoBuffer[18];
+            _bk9000Info.digitalInputBits = infoBuffer[19];
 		}
 		catch(BaseLib::Exception& ex)
 		{

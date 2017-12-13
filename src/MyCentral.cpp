@@ -89,7 +89,7 @@ void MyCentral::loadPeers()
 			if(!peer->getSerialNumber().empty()) _peersBySerial[peer->getSerialNumber()] = peer;
 			_peersById[peerID] = peer;
 		}
-		updatePeerAddresses();
+		updatePeerAddresses(true);
 		for(std::map<std::string, std::shared_ptr<MainInterface>>::iterator i = GD::physicalInterfaces.begin(); i != GD::physicalInterfaces.end(); ++i)
 		{
 			i->second->enableOutputs();
@@ -872,7 +872,7 @@ std::shared_ptr<MyPeer> MyCentral::createPeer(uint32_t type, int32_t address, st
     return std::shared_ptr<MyPeer>();
 }
 
-void MyCentral::updatePeerAddresses()
+void MyCentral::updatePeerAddresses(bool booting)
 {
 	try
 	{
@@ -1016,7 +1016,7 @@ void MyCentral::updatePeerAddresses()
 			uint32_t currentAddress = 0;
 			for(auto& peer : currentPots->analogInputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits && !GD::bl->booting)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
@@ -1027,7 +1027,7 @@ void MyCentral::updatePeerAddresses()
 
 			for(auto& peer : currentPots->digitalInputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits && !GD::bl->booting)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
@@ -1039,7 +1039,7 @@ void MyCentral::updatePeerAddresses()
 			currentAddress = 0;
 			for(auto& peer : currentPots->analogOutputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits && !GD::bl->booting)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
@@ -1050,7 +1050,7 @@ void MyCentral::updatePeerAddresses()
 
 			for(auto& peer : currentPots->digitalOutputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits + currentPots->digitalOutputBits && !GD::bl->booting)
+				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits + currentPots->digitalOutputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
@@ -1064,7 +1064,7 @@ void MyCentral::updatePeerAddresses()
 			{
 				GD::out.printWarning("Warning: " + std::to_string(peersWithoutAddress[element.first] - 1) + " peer(s) on interface " + element.first + " have/has an unset NEXT_PEER_ID. Please complete the peer configuration.");
 			}
-			else if(!GD::bl->booting)
+			else if(!booting)
 			{
 				if(usedAnalogInputBits + usedAnalogOutputBits < currentPots->analogInputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->analogInputBits) + " analog input and output bits but only " + std::to_string(usedAnalogInputBits + usedAnalogOutputBits) + " are used.");
 				if(usedDigitalInputBits < currentPots->digitalInputBits) GD::out.printWarning("Warning: Interface " + element.first + " returned " + std::to_string(currentPots->digitalInputBits) + " digital input bits but only " + std::to_string(usedDigitalInputBits) + " are used.");
