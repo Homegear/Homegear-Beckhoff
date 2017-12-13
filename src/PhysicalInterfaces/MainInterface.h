@@ -5,7 +5,6 @@
 
 #include "../MyPacket.h"
 #include <homegear-base/BaseLib.h>
-#include <modbus/modbus.h>
 
 namespace MyFamily {
 
@@ -51,7 +50,7 @@ protected:
 
 	BaseLib::Output _out;
 	std::mutex _modbusMutex;
-	std::atomic<modbus_t*> _modbus;
+	std::shared_ptr<BaseLib::Modbus> _modbus;
 	Bk9000Info _bk9000Info;
 	std::atomic_bool _outputsEnabled;
 
