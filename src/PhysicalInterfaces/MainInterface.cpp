@@ -12,8 +12,13 @@ MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterface
 	_out.init(GD::bl);
 	_out.setPrefix(GD::out.getPrefix() + "Beckhoff BK90x0 \"" + settings->id + "\": ");
 
+    BaseLib::Modbus::ModbusInfo modbusInfo;
+    modbusInfo.hostname = _settings->host;
+    modbusInfo.port = BaseLib::Math::getNumber(_settings->port);
+
+    _modbus = std::make_shared<BaseLib::Modbus>(_bl, modbusInfo);
+
 	memset(&_bk9000Info, 0, sizeof(_bk9000Info));
-	_modbus = nullptr;
 	_outputsEnabled = false;
 
 	signal(SIGPIPE, SIG_IGN);
@@ -58,12 +63,7 @@ void MainInterface::stopListening()
 		_stopped = true;
 		{
 			std::lock_guard<std::mutex> modbusGuard(_modbusMutex);
-			if(_modbus)
-			{
-				modbus_close(_modbus);
-				modbus_free(_modbus);
-				_modbus = nullptr;
-			}
+			_modbus->disconnect();
 		}
 		IPhysicalInterface::stopListening();
 	}
@@ -86,74 +86,87 @@ void MainInterface::init()
 	std::lock_guard<std::mutex> modbusGuard(_modbusMutex);
 	try
     {
-		if(_modbus)
-		{
-			modbus_close(_modbus);
-			modbus_free(_modbus);
-			_modbus = nullptr;
-		}
+		_modbus->disconnect();
 		if(_settings->host.empty())
 		{
 			_out.printError("Error: Could not connect to BK90x0: Please set \"host\" in \"beckhoffbk90x0.conf\".");
 			return;
 		}
-		_modbus = modbus_new_tcp(_settings->host.c_str(), BaseLib::Math::getNumber(_settings->port));
-		if(!_modbus)
-		{
-			_out.printError("Error: Could not connect to BK90x0: Could not create modbus handle. Are hostname and port set correctly?");
-			return;
-		}
-		int result = modbus_connect(_modbus);
-		if(result == -1)
-		{
-			_out.printError("Error: Could not connect to BK90x0: " + std::string(modbus_strerror(errno)));
-			modbus_free(_modbus);
-			_modbus = nullptr;
-			return;
-		}
+
 		_hostname = _settings->host;
 		_ipAddress = BaseLib::Net::resolveHostname(_hostname);
 
-        memset(&_bk9000Info, 0, sizeof(_bk9000Info));
-        result = modbus_read_registers(_modbus, 0x1000, sizeof(_bk9000Info) / 2, (uint16_t*)(&_bk9000Info));
-        if(result == -1)
-        {
-        	_out.printError("Error: Could not read info registers: " + std::string(modbus_strerror(errno)));
-        	modbus_close(_modbus);
-			modbus_free(_modbus);
-			_modbus = nullptr;
+		try
+		{
+			_modbus->connect();
+		}
+		catch(BaseLib::Exception& ex)
+		{
+			_out.printError("Error: Could not connect to BK90x0: " + ex.what());
 			return;
-        }
+		}
+
+		std::vector<uint16_t> infoBuffer(sizeof(_bk9000Info) / 2); //Size is an even number so division by 2 works
+        memset(&_bk9000Info, 0, sizeof(_bk9000Info));
+		try
+		{
+			_modbus->readHoldingRegisters(0x1000, infoBuffer, infoBuffer.size());
+            for(int32_t i = 0; i < 7; i++)
+            {
+                _bk9000Info.busCouplerId[i * 2] = (char)(uint8_t)(infoBuffer[i] & 0xFF);
+                _bk9000Info.busCouplerId[(i * 2) + 1] = (char)(uint8_t)(infoBuffer[i] >> 8);
+            }
+            _bk9000Info.spsInterface = infoBuffer[10];
+            _bk9000Info.diag = infoBuffer[11];
+            _bk9000Info.status = infoBuffer[12];
+            _bk9000Info.analogOutputBits = infoBuffer[16];
+            _bk9000Info.analogInputBits = infoBuffer[17];
+            _bk9000Info.digitalOutputBits = infoBuffer[18];
+            _bk9000Info.digitalInputBits = infoBuffer[19];
+		}
+		catch(BaseLib::Exception& ex)
+		{
+			_modbus->disconnect();
+			_out.printError("Error: Could not read info registers: " + ex.what());
+			return;
+		}
 
         //Reset Watchdog
-		modbus_write_register(_modbus, 0x1121, 0xBECF);
-		modbus_write_register(_modbus, 0x1121, 0xAFFE);
+		try
+		{
+			_modbus->writeSingleRegister(0x1121, 0xBECF);
+			_modbus->writeSingleRegister(0x1121, 0xAFFE);
 
-        result = modbus_write_register(_modbus, 0x1122, 1); //Schreibtelegramm Watchdog
-        if(result == -1)
-        {
-        	_out.printError("Error: Could not set watchdog type: " + std::string(modbus_strerror(errno)));
-        	modbus_close(_modbus);
-			modbus_free(_modbus);
-			_modbus = nullptr;
+			_modbus->writeSingleRegister(0x1121, 1);
+		}
+		catch(BaseLib::Exception& ex)
+		{
+			_out.printError("Error: Could not set watchdog type: " + ex.what());
+			_modbus->disconnect();
 			return;
-        }
+		}
 
         if((_bk9000Info.busCouplerId[7] == 0x42 && _bk9000Info.busCouplerId[8] >= 0x43) || _bk9000Info.busCouplerId[7] > 0x42)
         {
         	_out.printInfo("Info: Enabling \"Fast Modbus\"...");
-			result = modbus_write_register(_modbus, 0x1123, 1); //Fast Modbus
-			if(result == -1)
+			try
 			{
-				_out.printError("Error: Could not set TCP mode to \"Fast Modbus\": " + std::string(modbus_strerror(errno)));
+				_modbus->writeSingleRegister(0x1123, 1); //Fast Modbus
+			}
+			catch(BaseLib::Exception& ex)
+			{
+				_out.printError("Error: Could not set TCP mode to \"Fast Modbus\": " + ex.what());
 			}
         }
 
-        result = modbus_write_register(_modbus, 0x1120, _settings->watchdogTimeout);
-        if(result == -1)
-        {
-        	_out.printInfo("Info: Could not set watchdog interval: " + std::string(modbus_strerror(errno)));
-        }
+		try
+		{
+			_modbus->writeSingleRegister(0x1120, _settings->watchdogTimeout);
+		}
+		catch(BaseLib::Exception& ex)
+		{
+			_out.printInfo("Info: Could not set watchdog interval: " + ex.what());
+		}
 
         if(_bk9000Info.status != 0)
         {
@@ -185,11 +198,7 @@ void MainInterface::init()
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
-    if(_modbus)
-    {
-        modbus_free(_modbus);
-        _modbus = nullptr;
-    }
+    _modbus->disconnect();
 }
 
 void MainInterface::listen()
@@ -199,7 +208,6 @@ void MainInterface::listen()
     	int64_t startTime = BaseLib::HelperFunctions::getTimeMicroseconds();
     	int64_t endTime;
     	int64_t timeToSleep;
-    	int result = 0;
 
     	std::vector<uint16_t> readBuffer(_readBuffer.size(), 0);
 
@@ -217,13 +225,17 @@ void MainInterface::listen()
 
 				if(_readBuffer.empty())
 				{
-					if(_outputsEnabled && !_writeBuffer.empty()) result = modbus_write_registers(_modbus, 0x800, _writeBuffer.size(), _writeBuffer.data());
-					else result = 0;
-
-					if(result == -1)
+					if(_outputsEnabled && !_writeBuffer.empty())
 					{
-						_stopped = true;
-						continue;
+						try
+						{
+							_modbus->writeMultipleRegisters(0x800, _writeBuffer, _writeBuffer.size());
+						}
+						catch(BaseLib::Exception& ex)
+						{
+							_stopped = true;
+							continue;
+						}
 					}
 				}
 				else
@@ -231,10 +243,12 @@ void MainInterface::listen()
 					if(readBuffer.size() != _readBuffer.size()) readBuffer.resize(_readBuffer.size(), 0);
 
 					//std::cerr << 'W' << BaseLib::HelperFunctions::getHexString(_writeBuffer) << std::endl;
-					if(_outputsEnabled && !_writeBuffer.empty()) result = modbus_write_and_read_registers(_modbus, 0x800, _writeBuffer.size(), _writeBuffer.data(), 0x0, readBuffer.size(), readBuffer.data());
-					else result = modbus_read_registers(_modbus, 0x0, _readBuffer.size(), readBuffer.data());
-
-					if(result == -1)
+					try
+					{
+						if(_outputsEnabled && !_writeBuffer.empty()) _modbus->readWriteMultipleRegisters(0x0, readBuffer, readBuffer.size(), 0x800, _writeBuffer, _writeBuffer.size());
+						else _modbus->readHoldingRegisters(0x0, _readBuffer, readBuffer.size());
+					}
+					catch(BaseLib::Exception& ex)
 					{
 						_stopped = true;
 						continue;
