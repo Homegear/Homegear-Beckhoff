@@ -292,7 +292,8 @@ void MyCentral::deletePeer(uint64_t id)
 			channels->arrayValue->push_back(PVariable(new Variable(i->first)));
 		}
 
-		raiseRPCDeleteDevices(deviceAddresses, deviceInfo);
+        std::vector<uint64_t> deletedIds{ id };
+		raiseRPCDeleteDevices(deletedIds, deviceAddresses, deviceInfo);
 
         {
             std::lock_guard<std::mutex> peersGuard(_peersMutex);
@@ -423,37 +424,35 @@ std::string MyCentral::handleCliCommand(std::string command)
 				if(!peer || !peer->getRpcDevice()) return "Device type not supported.\n";
 				try
 				{
-					_peersMutex.lock();
+					std::unique_lock<std::mutex> peersGuard(_peersMutex);
 					if(!peer->getSerialNumber().empty()) _peersBySerial[peer->getSerialNumber()] = peer;
-					_peersMutex.unlock();
+                    peersGuard.unlock();
 					peer->save(true, true, false);
 					peer->initializeCentralConfig();
 					peer->setPhysicalInterfaceId(interfaceId);
-					_peersMutex.lock();
+                    peersGuard.lock();
 					_peersById[peer->getID()] = peer;
-					_peersMutex.unlock();
+                    peersGuard.unlock();
 					peer->setNextPeerId(nextPeerId); //Set next peer ID again, because otherwise it cannot be saved.
 					updatePeerAddresses();
 				}
 				catch(const std::exception& ex)
 				{
-					_peersMutex.unlock();
 					GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 				}
 				catch(BaseLib::Exception& ex)
 				{
-					_peersMutex.unlock();
 					GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 				}
 				catch(...)
 				{
-					_peersMutex.unlock();
 					GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 				}
 
 				PVariable deviceDescriptions(new Variable(VariableType::tArray));
 				deviceDescriptions->arrayValue = peer->getDeviceDescriptions(nullptr, true, std::map<std::string, bool>());
-				raiseRPCNewDevices(deviceDescriptions);
+                std::vector<uint64_t> newIds{ peer->getID() };
+				raiseRPCNewDevices(newIds, deviceDescriptions);
 				GD::out.printMessage("Added peer with ID " + std::to_string(peer->getID()) + ".");
 				stringStream << "Added peer " << std::to_string(peer->getID()) << " with ID " << std::to_string(peer->getID()) << " and serial number " << serial << "." << std::dec << std::endl;
 			}
@@ -1117,10 +1116,12 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 			peer->save(true, true, false);
 			peer->initializeCentralConfig();
 			peer->setPhysicalInterfaceId(interfaceId);
-			_peersMutex.lock();
-			_peersById[peer->getID()] = peer;
-			_peersBySerial[peer->getSerialNumber()] = peer;
-			_peersMutex.unlock();
+
+            {
+                std::lock_guard<std::mutex> peersGuard(_peersMutex);
+                _peersById[peer->getID()] = peer;
+                _peersBySerial[peer->getSerialNumber()] = peer;
+            }
 
 			updatePeerAddresses();
 		}
@@ -1142,7 +1143,8 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 
 		PVariable deviceDescriptions(new Variable(VariableType::tArray));
 		deviceDescriptions->arrayValue = peer->getDeviceDescriptions(clientInfo, true, std::map<std::string, bool>());
-		raiseRPCNewDevices(deviceDescriptions);
+        std::vector<uint64_t> newIds{ peer->getID() };
+		raiseRPCNewDevices(newIds, deviceDescriptions);
 		GD::out.printMessage("Added peer " + std::to_string(peer->getID()) + ".");
 
 		return PVariable(new Variable((uint32_t)peer->getID()));
