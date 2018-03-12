@@ -93,7 +93,7 @@ PVariable MyFamily::getPairingInfo()
 
 		//{{{ BK90x0
 		auto interface = std::make_shared<BaseLib::Variable>(BaseLib::VariableType::tStruct);
-		interface->structValue->emplace("name", std::make_shared<BaseLib::Variable>(std::string("CUNX")));
+		interface->structValue->emplace("name", std::make_shared<BaseLib::Variable>(std::string("BK90x0")));
 		interface->structValue->emplace("ipDevice", std::make_shared<BaseLib::Variable>(true));
 
 		auto field = std::make_shared<BaseLib::Variable>(BaseLib::VariableType::tStruct);
