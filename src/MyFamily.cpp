@@ -75,9 +75,8 @@ PVariable MyFamily::getPairingInfo()
 		PVariable createDeviceMetadata = std::make_shared<BaseLib::Variable>(BaseLib::VariableType::tStruct);
 		PVariable createDeviceMetadataInfo = std::make_shared<BaseLib::Variable>(BaseLib::VariableType::tStruct);
 		PVariable createDeviceFields = std::make_shared<BaseLib::Variable>(BaseLib::VariableType::tArray);
-		createDeviceFields->arrayValue->reserve(3);
+		createDeviceFields->arrayValue->reserve(2);
 		createDeviceFields->arrayValue->push_back(std::make_shared<BaseLib::Variable>("deviceType"));
-		createDeviceFields->arrayValue->push_back(std::make_shared<BaseLib::Variable>("address"));
 		createDeviceFields->arrayValue->push_back(std::make_shared<BaseLib::Variable>("serialNumber"));
 		createDeviceMetadataInfo->structValue->emplace("fields", createDeviceFields);
 		createDeviceMetadata->structValue->emplace("metadataInfo", createDeviceMetadataInfo);

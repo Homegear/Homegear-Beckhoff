@@ -50,8 +50,6 @@
 		          <label>Address (start bit)</label>
 		          <readable>true</readable>
 		          <writeable>false</writeable>
-		          <formFieldType>text</formFieldType>
-		          <formPosition>2</formPosition>
 		          <casts>
 		            <rpcBinary />
 		          </casts>

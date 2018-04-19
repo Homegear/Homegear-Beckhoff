@@ -1003,15 +1003,19 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
 				BaseLib::Systems::RpcConfigurationParameter& parameter = parameterIterator->second;
 				if(!parameter.rpcParameter) continue;
 
-				if(channel == 0 && i->first == "NEXT_PEER_ID")
+				if(channel == 0)
 				{
-					std::shared_ptr<MyCentral> central = std::dynamic_pointer_cast<MyCentral>(getCentral());
-					if(!central) continue;
-					if((uint64_t)i->second->integerValue64 != _nextPeerId)
+					if(i->first == "NEXT_PEER_ID")
 					{
-						_nextPeerId = i->second->integerValue64;
-						central->updatePeerAddresses();
+						std::shared_ptr<MyCentral> central = std::dynamic_pointer_cast<MyCentral>(getCentral());
+						if(!central) continue;
+						if((uint64_t) i->second->integerValue64 != _nextPeerId)
+						{
+							_nextPeerId = i->second->integerValue64;
+							central->updatePeerAddresses();
+						}
 					}
+					else if(i->first == "ADDRESS") continue;
 				}
 				std::vector<uint8_t> parameterData;
 				parameter.rpcParameter->convertToPacket(i->second, parameterData);
