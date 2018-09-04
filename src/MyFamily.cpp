@@ -15,6 +15,7 @@ MyFamily::MyFamily(BaseLib::SharedObjects* bl, BaseLib::Systems::DeviceFamily::I
 	GD::out.init(bl);
 	GD::out.setPrefix(std::string("Module ") + MY_FAMILY_NAME + ": ");
 	GD::out.printDebug("Debug: Loading module...");
+    if(!enabled()) return;
 	_physicalInterfaces.reset(new Interfaces(bl, _settings->getPhysicalInterfaceSettings()));
 }
 
