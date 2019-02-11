@@ -178,9 +178,16 @@ void MainInterface::init()
         int32_t inputRegisters = (_bk9000Info.analogInputBits + _bk9000Info.digitalInputBits) / 16 + ((_bk9000Info.analogInputBits + _bk9000Info.digitalInputBits) % 16 != 0 ? 1 : 0);
         int32_t outputRegisters = (_bk9000Info.analogOutputBits + _bk9000Info.digitalOutputBits) / 16 + ((_bk9000Info.analogOutputBits + _bk9000Info.digitalOutputBits) % 16 != 0 ? 1 : 0);
 
-        _readBuffer.clear();
-        _readBuffer.resize(inputRegisters, 0);
-        _writeBuffer.resize(outputRegisters, 0);
+        {
+            std::lock_guard readBufferGuard(_readBufferMutex);
+            _readBuffer.clear();
+            _readBuffer.resize(inputRegisters, 0);
+        }
+
+        {
+            std::lock_guard writeBufferGuard(_writeBufferMutex);
+            _writeBuffer.resize(outputRegisters, 0);
+        }
 
         _out.printInfo("Info: Connected to BK90x0. ID: " + std::string(_bk9000Info.busCouplerId, 12) + ", analog input bits: " + std::to_string(_bk9000Info.analogInputBits) + ", analog output bits: " + std::to_string(_bk9000Info.analogOutputBits) + ", digital input bits: " + std::to_string(_bk9000Info.digitalInputBits) + ", digital output bits: " + std::to_string(_bk9000Info.digitalOutputBits));
         _stopped = false;
@@ -209,7 +216,11 @@ void MainInterface::listen()
     	int64_t endTime;
     	int64_t timeToSleep;
 
-    	std::vector<uint16_t> readBuffer(_readBuffer.size(), 0);
+    	std::vector<uint16_t> readBuffer;
+        {
+            std::lock_guard readBufferGuard(_readBufferMutex);
+            readBuffer.resize(_readBuffer.size(), 0);
+        }
 
         while(!_stopCallbackThread)
         {
@@ -223,8 +234,15 @@ void MainInterface::listen()
 					continue;
 				}
 
-				if(_readBuffer.empty())
+				bool readBufferEmpty = false;
+                {
+                    std::shared_lock readBufferGuard(_readBufferMutex);
+                    readBufferEmpty = _readBuffer.empty();
+                }
+
+				if(readBufferEmpty)
 				{
+                    std::shared_lock writeBufferGuard(_writeBufferMutex);
 					if(_outputsEnabled && !_writeBuffer.empty())
 					{
 						try
@@ -240,13 +258,17 @@ void MainInterface::listen()
 				}
 				else
 				{
-					if(readBuffer.size() != _readBuffer.size()) readBuffer.resize(_readBuffer.size(), 0);
+                    std::shared_lock writeBufferGuard(_writeBufferMutex);
+                    {
+                        std::shared_lock readBufferGuard(_readBufferMutex);
+                        if(readBuffer.size() != _readBuffer.size()) readBuffer.resize(_readBuffer.size(), 0);
+                    }
 
 					//std::cerr << 'W' << BaseLib::HelperFunctions::getHexString(_writeBuffer) << std::endl;
 					try
 					{
 						if(_outputsEnabled && !_writeBuffer.empty()) _modbus->readWriteMultipleRegisters(0x0, readBuffer, readBuffer.size(), 0x800, _writeBuffer, _writeBuffer.size());
-						else _modbus->readHoldingRegisters(0x0, _readBuffer, readBuffer.size());
+						else _modbus->readHoldingRegisters(0x0, readBuffer, readBuffer.size());
 					}
 					catch(BaseLib::Exception& ex)
 					{
@@ -256,11 +278,16 @@ void MainInterface::listen()
 
 					_lastPacketSent = BaseLib::HelperFunctions::getTime();
 					_lastPacketReceived = _lastPacketSent;
+                    std::shared_lock readBufferGuard(_readBufferMutex);
 					if(!std::equal(readBuffer.begin(), readBuffer.end(), _readBuffer.begin()))
 					{
-						_readBuffer = readBuffer;
+                        readBufferGuard.unlock();
+                        {
+                            std::lock_guard readBufferGuard2(_readBufferMutex);
+                            _readBuffer = readBuffer;
+                        }
 						//std::cerr << 'R' << BaseLib::HelperFunctions::getHexString(readBuffer) << std::endl;
-						std::shared_ptr<MyPacket> packet(new MyPacket(0, _readBuffer.size() * 8 - 1, readBuffer));
+						std::shared_ptr<MyPacket> packet(new MyPacket(0, readBuffer.size() * 8 - 1, readBuffer));
 						raisePacketReceived(packet);
 					}
 				}
@@ -303,6 +330,7 @@ void MainInterface::setOutputData(std::shared_ptr<MyPacket> packet)
 {
 	try
 	{
+        std::lock_guard writeBufferGuard(_writeBufferMutex);
 		while(packet->getStartRegister() >= _writeBuffer.size()) _writeBuffer.push_back(0);
 
 		int32_t startRegister = packet->getStartRegister();
@@ -356,6 +384,7 @@ void MainInterface::sendPacket(std::shared_ptr<BaseLib::Systems::Packet> packet)
 
 		if(GD::bl->debugLevel >= 5) _out.printInfo("Debug: Queuing packet.");
 
+        std::lock_guard writeBufferGuard(_writeBufferMutex);
 		if(myPacket->getStartRegister() >= _writeBuffer.size())
 		{
 			_out.printError("Error: Packet has invalid start register: " + std::to_string(myPacket->getStartRegister()));
@@ -383,8 +412,10 @@ void MainInterface::sendPacket(std::shared_ptr<BaseLib::Systems::Packet> packet)
 			{
 				if(offset >= 0) bitValue = (data.at(dataRegisterPos) & _bitMask[dataBitPos]) << offset;
 				else bitValue = (data.at(dataRegisterPos) & _bitMask[dataBitPos]) >> (-offset);
-				if(bitValue) _writeBuffer[i] |= bitValue;
-				else _writeBuffer[i] &= _reversedBitMask[dataBitPos + offset];
+                {
+                    if(bitValue) _writeBuffer[i] |= bitValue;
+                    else _writeBuffer[i] &= _reversedBitMask[dataBitPos + offset];
+                }
 				dataBitPos++;
 				if(dataBitPos == 16)
 				{
