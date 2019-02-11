@@ -179,13 +179,13 @@ void MainInterface::init()
         int32_t outputRegisters = (_bk9000Info.analogOutputBits + _bk9000Info.digitalOutputBits) / 16 + ((_bk9000Info.analogOutputBits + _bk9000Info.digitalOutputBits) % 16 != 0 ? 1 : 0);
 
         {
-            std::lock_guard readBufferGuard(_readBufferMutex);
+            std::lock_guard<std::shared_timed_mutex> readBufferGuard(_readBufferMutex);
             _readBuffer.clear();
             _readBuffer.resize(inputRegisters, 0);
         }
 
         {
-            std::lock_guard writeBufferGuard(_writeBufferMutex);
+            std::lock_guard<std::shared_timed_mutex> writeBufferGuard(_writeBufferMutex);
             _writeBuffer.resize(outputRegisters, 0);
         }
 
@@ -218,7 +218,7 @@ void MainInterface::listen()
 
     	std::vector<uint16_t> readBuffer;
         {
-            std::lock_guard readBufferGuard(_readBufferMutex);
+            std::lock_guard<std::shared_timed_mutex> readBufferGuard(_readBufferMutex);
             readBuffer.resize(_readBuffer.size(), 0);
         }
 
@@ -236,13 +236,13 @@ void MainInterface::listen()
 
 				bool readBufferEmpty = false;
                 {
-                    std::shared_lock readBufferGuard(_readBufferMutex);
+                    std::shared_lock<std::shared_timed_mutex> readBufferGuard(_readBufferMutex);
                     readBufferEmpty = _readBuffer.empty();
                 }
 
 				if(readBufferEmpty)
 				{
-                    std::shared_lock writeBufferGuard(_writeBufferMutex);
+                    std::shared_lock<std::shared_timed_mutex> writeBufferGuard(_writeBufferMutex);
 					if(_outputsEnabled && !_writeBuffer.empty())
 					{
 						try
@@ -258,9 +258,9 @@ void MainInterface::listen()
 				}
 				else
 				{
-                    std::shared_lock writeBufferGuard(_writeBufferMutex);
+                    std::shared_lock<std::shared_timed_mutex> writeBufferGuard(_writeBufferMutex);
                     {
-                        std::shared_lock readBufferGuard(_readBufferMutex);
+                        std::shared_lock<std::shared_timed_mutex> readBufferGuard(_readBufferMutex);
                         if(readBuffer.size() != _readBuffer.size()) readBuffer.resize(_readBuffer.size(), 0);
                     }
 
@@ -278,12 +278,12 @@ void MainInterface::listen()
 
 					_lastPacketSent = BaseLib::HelperFunctions::getTime();
 					_lastPacketReceived = _lastPacketSent;
-                    std::shared_lock readBufferGuard(_readBufferMutex);
+                    std::shared_lock<std::shared_timed_mutex> readBufferGuard(_readBufferMutex);
 					if(!std::equal(readBuffer.begin(), readBuffer.end(), _readBuffer.begin()))
 					{
                         readBufferGuard.unlock();
                         {
-                            std::lock_guard readBufferGuard2(_readBufferMutex);
+                            std::lock_guard<std::shared_timed_mutex> readBufferGuard2(_readBufferMutex);
                             _readBuffer = readBuffer;
                         }
 						//std::cerr << 'R' << BaseLib::HelperFunctions::getHexString(readBuffer) << std::endl;
@@ -330,7 +330,7 @@ void MainInterface::setOutputData(std::shared_ptr<MyPacket> packet)
 {
 	try
 	{
-        std::lock_guard writeBufferGuard(_writeBufferMutex);
+        std::lock_guard<std::shared_timed_mutex> writeBufferGuard(_writeBufferMutex);
 		while(packet->getStartRegister() >= _writeBuffer.size()) _writeBuffer.push_back(0);
 
 		int32_t startRegister = packet->getStartRegister();
@@ -384,7 +384,7 @@ void MainInterface::sendPacket(std::shared_ptr<BaseLib::Systems::Packet> packet)
 
 		if(GD::bl->debugLevel >= 5) _out.printInfo("Debug: Queuing packet.");
 
-        std::lock_guard writeBufferGuard(_writeBufferMutex);
+        std::lock_guard<std::shared_timed_mutex> writeBufferGuard(_writeBufferMutex);
 		if(myPacket->getStartRegister() >= _writeBuffer.size())
 		{
 			_out.printError("Error: Packet has invalid start register: " + std::to_string(myPacket->getStartRegister()));

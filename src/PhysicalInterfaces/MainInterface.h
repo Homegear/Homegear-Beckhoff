@@ -56,9 +56,9 @@ protected:
 	Bk9000Info _bk9000Info;
 	std::atomic_bool _outputsEnabled;
 
-	std::shared_mutex _writeBufferMutex;
+	std::shared_timed_mutex _writeBufferMutex;
 	std::vector<uint16_t> _writeBuffer;
-	std::shared_mutex _readBufferMutex;
+	std::shared_timed_mutex _readBufferMutex;
 	std::vector<uint16_t> _readBuffer;
 
 	void init();
