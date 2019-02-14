@@ -6,6 +6,8 @@
 #include "../MyPacket.h"
 #include <homegear-base/BaseLib.h>
 
+#include <shared_mutex>
+
 namespace MyFamily {
 
 class MainInterface : public BaseLib::Systems::IPhysicalInterface
@@ -54,7 +56,9 @@ protected:
 	Bk9000Info _bk9000Info;
 	std::atomic_bool _outputsEnabled;
 
+	std::shared_timed_mutex _writeBufferMutex;
 	std::vector<uint16_t> _writeBuffer;
+	std::shared_timed_mutex _readBufferMutex;
 	std::vector<uint16_t> _readBuffer;
 
 	void init();
