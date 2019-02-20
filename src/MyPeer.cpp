@@ -1215,7 +1215,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 				while(statesIndex >= (signed)_states.size()) _states.push_back(0);
 				if(*value) _states.at(statesIndex) |= 1 << bitIndex;
 				else _states.at(statesIndex) &= ~(1 << bitIndex);
-				packet = std::make_shared<MyPacket>(_address + (statesIndex * 16), _address + (statesIndex * 16) + bitIndex, _states.at(statesIndex));
+				packet = std::make_shared<MyPacket>(_address + (statesIndex * 16) + bitIndex, _address + (statesIndex * 16) + bitIndex, (_states.at(statesIndex) >> bitIndex) & 1);
 			}
 
 			_physicalInterface->sendPacket(packet);
