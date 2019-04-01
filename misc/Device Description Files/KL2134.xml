@@ -2,7 +2,7 @@
 	<supportedDevices>
 		<device id="Beckhoff KL2134">
 			<description>4 channel 24V DC digital output</description>
-			<typeNumber>0x2408</typeNumber>
+			<typeNumber>0x2134</typeNumber>
 			<minFirmwareVersion>0</minFirmwareVersion>
 		</device>
 	</supportedDevices>
