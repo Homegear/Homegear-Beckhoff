@@ -102,7 +102,7 @@ void MainInterface::init()
 		}
 		catch(BaseLib::Exception& ex)
 		{
-			_out.printError("Error: Could not connect to BK90x0: " + ex.what());
+			_out.printError("Error: Could not connect to BK90x0: " + std::string(ex.what()));
 			return;
 		}
 
@@ -127,7 +127,7 @@ void MainInterface::init()
 		catch(BaseLib::Exception& ex)
 		{
 			_modbus->disconnect();
-			_out.printError("Error: Could not read info registers: " + ex.what());
+			_out.printError("Error: Could not read info registers: " + std::string(ex.what()));
 			return;
 		}
 
@@ -141,7 +141,7 @@ void MainInterface::init()
 		}
 		catch(BaseLib::Exception& ex)
 		{
-			_out.printError("Error: Could not set watchdog type: " + ex.what());
+			_out.printError("Error: Could not set watchdog type: " + std::string(ex.what()));
 			_modbus->disconnect();
 			return;
 		}
@@ -155,7 +155,7 @@ void MainInterface::init()
 			}
 			catch(BaseLib::Exception& ex)
 			{
-				_out.printError("Error: Could not set TCP mode to \"Fast Modbus\": " + ex.what());
+				_out.printError("Error: Could not set TCP mode to \"Fast Modbus\": " + std::string(ex.what()));
 			}
         }
 
@@ -165,7 +165,7 @@ void MainInterface::init()
 		}
 		catch(BaseLib::Exception& ex)
 		{
-			_out.printInfo("Info: Could not set watchdog interval: " + ex.what());
+			_out.printInfo("Info: Could not set watchdog interval: " + std::string(ex.what()));
 		}
 
         if(_bk9000Info.status != 0)
