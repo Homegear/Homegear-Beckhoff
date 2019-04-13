@@ -1018,7 +1018,6 @@ void MyCentral::updatePeerAddresses(bool booting)
 				usedDigitalOutputBits += peer->getMemorySize();
 			}
 
-
 			if(peersWithoutAddress[element.first] > 1)
 			{
 				GD::out.printWarning("Warning: " + std::to_string(peersWithoutAddress[element.first] - 1) + " peer(s) on interface " + element.first + " have/has an unset NEXT_PEER_ID. Please complete the peer configuration.");

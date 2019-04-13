@@ -7,7 +7,7 @@
 		</device>
 	</supportedDevices>
 	<properties>
-		<memorySize>80</memorySize>
+		<memorySize>128</memorySize>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
@@ -252,7 +252,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
@@ -269,7 +269,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
@@ -286,7 +286,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
@@ -303,7 +303,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>

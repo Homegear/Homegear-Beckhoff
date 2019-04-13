@@ -81,6 +81,12 @@ void MainInterface::stopListening()
     }
 }
 
+bool MainInterface::reconnect()
+{
+    init();
+    return isOpen();
+}
+
 void MainInterface::init()
 {
 	std::lock_guard<std::mutex> modbusGuard(_modbusMutex);
