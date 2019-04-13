@@ -37,14 +37,6 @@ void MyCentral::dispose(bool wait)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
 }
 
 void MyCentral::init()
@@ -62,14 +54,6 @@ void MyCentral::init()
 	catch(const std::exception& ex)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 	}
 }
 
@@ -99,14 +83,6 @@ void MyCentral::loadPeers()
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
 }
 
 std::shared_ptr<MyPeer> MyCentral::getPeer(uint64_t id)
@@ -123,14 +99,6 @@ std::shared_ptr<MyPeer> MyCentral::getPeer(uint64_t id)
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return std::shared_ptr<MyPeer>();
 }
@@ -149,14 +117,6 @@ std::shared_ptr<MyPeer> MyCentral::getPeer(std::string serialNumber)
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return std::shared_ptr<MyPeer>();
 }
@@ -235,14 +195,6 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
     return false;
 }
 
@@ -260,14 +212,6 @@ void MyCentral::savePeers(bool full)
 	catch(const std::exception& ex)
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 }
 
@@ -317,16 +261,6 @@ void MyCentral::deletePeer(uint64_t id)
 		_peersMutex.unlock();
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-    	_peersMutex.unlock();
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	_peersMutex.unlock();
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
 }
 
 std::string MyCentral::handleCliCommand(std::string command)
@@ -347,6 +281,8 @@ std::string MyCentral::handleCliCommand(std::string command)
 			stringStream << "peers setname (pn)  Name a peer" << std::endl;
 			stringStream << "peers setnext (px)  Assigns the ID of the peer physically following in the installation to a peer" << std::endl;
 			stringStream << "send                Sends a raw packet" << std::endl;
+			stringStream << "readbuffer          Prints the read buffer of an interface" << std::endl;
+            stringStream << "writebuffer         Prints the write buffer of an interface" << std::endl;
 			stringStream << "unselect (u)        Unselect this device" << std::endl;
 			return stringStream.str();
 		}
@@ -427,14 +363,6 @@ std::string MyCentral::handleCliCommand(std::string command)
 				catch(const std::exception& ex)
 				{
 					GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-				}
-				catch(BaseLib::Exception& ex)
-				{
-					GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-				}
-				catch(...)
-				{
-					GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 				}
 
 				PVariable deviceDescriptions(new Variable(VariableType::tArray));
@@ -646,16 +574,6 @@ std::string MyCentral::handleCliCommand(std::string command)
 				_peersMutex.unlock();
 				GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 			}
-			catch(BaseLib::Exception& ex)
-			{
-				_peersMutex.unlock();
-				GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-			}
-			catch(...)
-			{
-				_peersMutex.unlock();
-				GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-			}
 		}
 		else if(command.compare(0, 13, "peers setname") == 0 || command.compare(0, 2, "pn") == 0)
 		{
@@ -736,69 +654,83 @@ std::string MyCentral::handleCliCommand(std::string command)
 			}
 			return stringStream.str();
 		}
-		else if(command.compare(0, 4, "send") == 0)
+        else if(BaseLib::HelperFunctions::checkCliCommand(command, "send", "", "", 4, arguments, showHelp))
 		{
-			std::stringstream stream(command);
-			std::string element;
-			std::vector<uint8_t> bytes;
-			std::vector<uint16_t> data;
-			uint16_t startBit = 0;
-			uint16_t endBit = 0;
-			int32_t index = 0;
-			while(std::getline(stream, element, ' '))
-			{
-				if(index < 1)
-				{
-					index++;
-					continue;
-				}
-				else if(index == 1)
-				{
-					if(element == "help")
-					{
-						stringStream << "Description: This command sends a raw packet." << std::endl;
-						stringStream << "Usage: send STARTBIT ENDBIT DATA" << std::endl << std::endl;
-						stringStream << "Parameters:" << std::endl;
-						stringStream << "  STARTBIT:\tThe start bit of the data. Example: 10" << std::endl;
-						stringStream << "  ENDBIT:\tThe end bit of the data. Example: 13" << std::endl;
-						stringStream << "  DATA:\tThe register aligned data. Example: 03C0" << std::endl;
-						return stringStream.str();
-					}
-					else startBit = BaseLib::Math::getNumber(element);
-				}
-				else if(index == 2) endBit = BaseLib::Math::getNumber(element);
-				else if(index == 3)
-				{
-					bytes = _bl->hf.getUBinary(element);
-					data.resize(bytes.size() / 2 + (bytes.size() % 2 ? 1 : 0));
-					for(int32_t i = 0; i < (signed)bytes.size(); i++)
-					{
-						data.at(i / 2) += bytes.at(i) << (i % 2 ? 0 : 8);
-					}
-				}
-				index++;
-			}
+            if(showHelp)
+            {
+                stringStream << "Description: This command sends a raw packet." << std::endl;
+                stringStream << "Usage: send INTERFACE STARTBIT ENDBIT DATA" << std::endl << std::endl;
+                stringStream << "Parameters:" << std::endl;
+                stringStream << "  INTERFACE: The interface to set the data in. Example: My-BK9000" << std::endl;
+                stringStream << "  STARTBIT:  The start bit of the data. Example: 10" << std::endl;
+                stringStream << "  ENDBIT:    The end bit of the data. Example: 13" << std::endl;
+                stringStream << "  DATA:      The register aligned data. Example: 03C0" << std::endl;
+                return stringStream.str();
+            }
+
+            std::string interfaceId = arguments.at(0);
+            uint16_t startBit = BaseLib::Math::getNumber(arguments.at(1));
+            uint16_t endBit = BaseLib::Math::getNumber(arguments.at(2));
+            std::vector<uint16_t> data;
+            auto bytes = _bl->hf.getUBinary(arguments.at(3));
+            data.resize(bytes.size() / 2 + (bytes.size() % 2 ? 1 : 0));
+            for(int32_t i = 0; i < (signed)bytes.size(); i++)
+            {
+                data.at(i / 2) += bytes.at(i) << (i % 2 ? 0 : 8);
+            }
 
 			stringStream << "Sending packet " << BaseLib::HelperFunctions::getHexString(bytes) << std::endl;
 
-			std::shared_ptr<MyPacket> packet(new MyPacket(startBit, endBit, data));
-			GD::defaultPhysicalInterface->sendPacket(packet);
+			auto packet = std::make_shared<MyPacket>(startBit, endBit, data);
+			auto interfaceIterator = GD::physicalInterfaces.find(interfaceId);
+			if(interfaceIterator == GD::physicalInterfaces.end()) return "Unknown interface.\n";
+			interfaceIterator->second->sendPacket(packet);
 
 			return stringStream.str();
 		}
+        else if(BaseLib::HelperFunctions::checkCliCommand(command, "readbuffer", "", "", 1, arguments, showHelp))
+        {
+            if(showHelp)
+            {
+                stringStream << "Description: This command prints the read buffer of an interface." << std::endl;
+                stringStream << "Usage: readbuffer INTERFACE" << std::endl << std::endl;
+                stringStream << "Parameters:" << std::endl;
+                stringStream << "  INTERFACE: The interface to get the read buffer for. Example: My-BK9000" << std::endl;
+                return stringStream.str();
+            }
+
+            std::string interfaceId = arguments.at(0);
+            auto interfaceIterator = GD::physicalInterfaces.find(interfaceId);
+            if(interfaceIterator == GD::physicalInterfaces.end()) return "Unknown interface.\n";
+
+            stringStream << BaseLib::HelperFunctions::getHexString(interfaceIterator->second->getReadBuffer()) << std::endl;
+
+            return stringStream.str();
+        }
+        else if(BaseLib::HelperFunctions::checkCliCommand(command, "writebuffer", "", "", 1, arguments, showHelp))
+        {
+            if(showHelp)
+            {
+                stringStream << "Description: This command prints the write buffer of an interface." << std::endl;
+                stringStream << "Usage: writebuffer INTERFACE" << std::endl << std::endl;
+                stringStream << "Parameters:" << std::endl;
+                stringStream << "  INTERFACE: The interface to get the write buffer for. Example: My-BK9000" << std::endl;
+                return stringStream.str();
+            }
+
+            std::string interfaceId = arguments.at(0);
+            auto interfaceIterator = GD::physicalInterfaces.find(interfaceId);
+            if(interfaceIterator == GD::physicalInterfaces.end()) return "Unknown interface.\n";
+
+            stringStream << BaseLib::HelperFunctions::getHexString(interfaceIterator->second->getWriteBuffer()) << std::endl;
+
+            return stringStream.str();
+        }
 		else return "Unknown command.\n";
 	}
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return "Error executing command. See log file for more details.\n";
 }
@@ -819,14 +751,6 @@ std::shared_ptr<MyPeer> MyCentral::createPeer(uint32_t type, int32_t address, st
     catch(const std::exception& ex)
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return std::shared_ptr<MyPeer>();
 }
@@ -1034,14 +958,6 @@ void MyCentral::updatePeerAddresses(bool booting)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-	}
 }
 
 PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t deviceType, std::string serialNumber, int32_t address, int32_t firmwareVersion, std::string interfaceId)
@@ -1075,16 +991,6 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 			_peersMutex.unlock();
 			GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 		}
-		catch(BaseLib::Exception& ex)
-		{
-			_peersMutex.unlock();
-			GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-		}
-		catch(...)
-		{
-			_peersMutex.unlock();
-			GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-		}
 
 		PVariable deviceDescriptions(new Variable(VariableType::tArray));
 		deviceDescriptions->arrayValue = peer->getDeviceDescriptions(clientInfo, true, std::map<std::string, bool>());
@@ -1097,14 +1003,6 @@ PVariable MyCentral::createDevice(BaseLib::PRpcClientInfo clientInfo, int32_t de
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return Variable::createError(-32500, "Unknown application error.");
 }
@@ -1128,14 +1026,6 @@ PVariable MyCentral::deleteDevice(BaseLib::PRpcClientInfo clientInfo, std::strin
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return Variable::createError(-32500, "Unknown application error.");
 }
@@ -1161,14 +1051,6 @@ PVariable MyCentral::deleteDevice(BaseLib::PRpcClientInfo clientInfo, uint64_t p
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
     return Variable::createError(-32500, "Unknown application error.");
 }
 
@@ -1183,14 +1065,6 @@ PVariable MyCentral::setInterface(BaseLib::PRpcClientInfo clientInfo, uint64_t p
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return Variable::createError(-32500, "Unknown application error.");
 }

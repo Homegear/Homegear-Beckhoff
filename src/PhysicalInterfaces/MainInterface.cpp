@@ -29,6 +29,18 @@ MainInterface::~MainInterface()
 	stopListening();
 }
 
+std::vector<uint16_t> MainInterface::getReadBuffer()
+{
+    std::shared_lock<std::shared_timed_mutex> readBufferGuard(_readBufferMutex);
+    return _readBuffer;
+}
+
+std::vector<uint16_t> MainInterface::getWriteBuffer()
+{
+    std::shared_lock<std::shared_timed_mutex> readBufferGuard(_writeBufferMutex);
+    return _writeBuffer;
+}
+
 void MainInterface::startListening()
 {
 	try
@@ -43,14 +55,6 @@ void MainInterface::startListening()
     catch(const std::exception& ex)
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 }
 
@@ -71,20 +75,6 @@ void MainInterface::stopListening()
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-}
-
-bool MainInterface::reconnect()
-{
-    init();
-    return isOpen();
 }
 
 void MainInterface::init()
@@ -106,7 +96,7 @@ void MainInterface::init()
 		{
 			_modbus->connect();
 		}
-		catch(BaseLib::Exception& ex)
+		catch(const std::exception& ex)
 		{
 			_out.printError("Error: Could not connect to BK90x0: " + std::string(ex.what()));
 			return;
@@ -130,7 +120,7 @@ void MainInterface::init()
             _bk9000Info.digitalOutputBits = infoBuffer[18];
             _bk9000Info.digitalInputBits = infoBuffer[19];
 		}
-		catch(BaseLib::Exception& ex)
+		catch(const std::exception& ex)
 		{
 			_modbus->disconnect();
 			_out.printError("Error: Could not read info registers: " + std::string(ex.what()));
@@ -145,7 +135,7 @@ void MainInterface::init()
 
 			_modbus->writeSingleRegister(0x1121, 1);
 		}
-		catch(BaseLib::Exception& ex)
+		catch(const std::exception& ex)
 		{
 			_out.printError("Error: Could not set watchdog type: " + std::string(ex.what()));
 			_modbus->disconnect();
@@ -159,7 +149,7 @@ void MainInterface::init()
 			{
 				_modbus->writeSingleRegister(0x1123, 1); //Fast Modbus
 			}
-			catch(BaseLib::Exception& ex)
+			catch(const std::exception& ex)
 			{
 				_out.printError("Error: Could not set TCP mode to \"Fast Modbus\": " + std::string(ex.what()));
 			}
@@ -169,7 +159,7 @@ void MainInterface::init()
 		{
 			_modbus->writeSingleRegister(0x1120, _settings->watchdogTimeout);
 		}
-		catch(BaseLib::Exception& ex)
+		catch(const std::exception& ex)
 		{
 			_out.printInfo("Info: Could not set watchdog interval: " + std::string(ex.what()));
 		}
@@ -202,14 +192,6 @@ void MainInterface::init()
     catch(const std::exception& ex)
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     _modbus->disconnect();
 }
@@ -255,7 +237,7 @@ void MainInterface::listen()
 						{
 							_modbus->writeMultipleRegisters(0x800, _writeBuffer, _writeBuffer.size());
 						}
-						catch(BaseLib::Exception& ex)
+						catch(const std::exception& ex)
 						{
 							_stopped = true;
 							continue;
@@ -276,7 +258,7 @@ void MainInterface::listen()
 						if(_outputsEnabled && !_writeBuffer.empty()) _modbus->readWriteMultipleRegisters(0x0, readBuffer, readBuffer.size(), 0x800, _writeBuffer, _writeBuffer.size());
 						else _modbus->readHoldingRegisters(0x0, readBuffer, readBuffer.size());
 					}
-					catch(BaseLib::Exception& ex)
+					catch(std::exception& ex)
 					{
 						_stopped = true;
 						continue;
@@ -308,27 +290,11 @@ void MainInterface::listen()
 			{
 				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 			}
-			catch(BaseLib::Exception& ex)
-			{
-				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-			}
-			catch(...)
-			{
-				_out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-			}
         }
     }
     catch(const std::exception& ex)
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 }
 
@@ -370,14 +336,6 @@ void MainInterface::setOutputData(std::shared_ptr<MyPacket> packet)
 	catch(const std::exception& ex)
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 }
 
@@ -437,14 +395,6 @@ void MainInterface::sendPacket(std::shared_ptr<BaseLib::Systems::Packet> packet)
 	catch(const std::exception& ex)
     {
         _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        _out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 }
 

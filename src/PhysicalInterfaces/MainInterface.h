@@ -29,6 +29,9 @@ public:
 
 	bool isOpen() { return !_stopped; }
 
+    std::vector<uint16_t> getReadBuffer();
+    std::vector<uint16_t> getWriteBuffer();
+
 	void setOutputData(std::shared_ptr<MyPacket> packet);
 	void sendPacket(std::shared_ptr<BaseLib::Systems::Packet> packet);
 protected:
