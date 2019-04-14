@@ -163,14 +163,16 @@ std::string MyPeer::handleCliCommand(std::string command)
 	try
 	{
 		std::ostringstream stringStream;
-
+        std::vector<std::string> arguments;
+        bool showHelp = false;
 		if(command == "help")
 		{
 			stringStream << "List of commands:" << std::endl << std::endl;
 			stringStream << "For more information about the individual command type: COMMAND help" << std::endl << std::endl;
-			stringStream << "unselect\t\tUnselect this peer" << std::endl;
-			stringStream << "channel count\t\tPrint the number of channels of this peer" << std::endl;
-			stringStream << "config print\t\tPrints all configuration parameters and their values" << std::endl;
+			stringStream << "unselect       Unselect this peer" << std::endl;
+			stringStream << "channel count  Print the number of channels of this peer" << std::endl;
+			stringStream << "config print   Prints all configuration parameters and their values" << std::endl;
+            stringStream << "states reset   Resets the state array" << std::endl;
 			return stringStream.str();
 		}
 		if(command.compare(0, 13, "channel count") == 0)
@@ -230,6 +232,28 @@ std::string MyPeer::handleCliCommand(std::string command)
 
 			return printConfig();
 		}
+        else if(BaseLib::HelperFunctions::checkCliCommand(command, "states reset", "sr", "", 0, arguments, showHelp))
+        {
+            if(showHelp)
+            {
+                stringStream << "Description: This command resets the peer's states array and all of the peer's values." << std::endl;
+                stringStream << "Usage: states reset" << std::endl << std::endl;
+                stringStream << "Parameters:" << std::endl;
+                stringStream << "  There are no parameters." << std::endl;
+                return stringStream.str();
+            }
+
+            std::vector<uint16_t> states;
+            {
+                std::lock_guard<std::mutex> statesGuard(_statesMutex);
+                std::fill(_states.begin(), _states.end(), 0);
+                states = _states;
+            }
+
+            packetReceived(states);
+
+            return "The states array was reset successfully.\n";
+        }
 		else return "Unknown command.\n";
 	}
 	catch(const std::exception& ex)
