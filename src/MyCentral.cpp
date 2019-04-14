@@ -3,6 +3,8 @@
 #include "MyCentral.h"
 #include "GD.h"
 
+#include <iomanip>
+
 namespace MyFamily {
 
 MyCentral::MyCentral(ICentralEventSink* eventHandler) : BaseLib::Systems::ICentral(MY_FAMILY_ID, GD::bl, eventHandler)
@@ -128,7 +130,7 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 		if(_disposing) return false;
 		std::shared_ptr<MyPacket> myPacket(std::dynamic_pointer_cast<MyPacket>(packet));
 		if(!myPacket) return false;
-		if(GD::bl->debugLevel >= 5) std::cout << BaseLib::HelperFunctions::getTimeString(myPacket->timeReceived()) << " New data received." << std::endl;
+		if(GD::bl->debugLevel >= 5) _bl->out.printDebug(BaseLib::HelperFunctions::getTimeString(myPacket->timeReceived()) + " New data received.");
 
 		myPacket->getData().push_back(0);
 
