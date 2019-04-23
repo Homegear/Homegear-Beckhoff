@@ -138,9 +138,9 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 		{
 			std::lock_guard<std::mutex> peersGuard(_peersMutex);
 			peers.reserve(_peersById.size());
-			for(std::map<uint64_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator i = _peersById.begin(); i != _peersById.end(); ++i)
+			for(auto& peerIterator : _peersById)
 			{
-				std::shared_ptr<MyPeer> peer(std::dynamic_pointer_cast<MyPeer>(i->second));
+				std::shared_ptr<MyPeer> peer(std::dynamic_pointer_cast<MyPeer>(peerIterator.second));
 				if(peer->isOutputDevice() || senderID != peer->getPhysicalInterface()->getID()) continue;
 				peers.push_back(peer);
 			}
@@ -155,10 +155,10 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 		uint32_t currentDestinationBit = 0;
 		std::vector<uint16_t>& sourceData = myPacket->getData();
 		std::vector<uint16_t> destinationData;
-		for(std::vector<std::shared_ptr<MyPeer>>::iterator i = peers.begin(); i != peers.end(); ++i)
+		for(auto& peer : peers)
 		{
-			startBit = (*i)->getAddress() + ((*i)->isAnalog() ? 0 : (*i)->getPhysicalInterface()->digitalInputOffset());
-			endBit = startBit + (*i)->getBitSize() - 1;
+			startBit = peer->getAddress() + (peer->isAnalog() ? 0 : peer->getPhysicalInterface()->digitalInputOffset());
+			endBit = startBit + peer->getInputMemorySize() - 1;
 			offset = startBit % 16;
 			currentSourceByte = startBit / 16;
 			currentSourceBit = startBit % 16;
@@ -167,7 +167,9 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 
 			if(currentSourceByte >= sourceData.size()) continue;
 
-			destinationData = std::vector<uint16_t>((*i)->getRegisterSize(), 0);
+			uint32_t registerSize = peer->getInputMemorySize() / 16;
+			if(peer->getInputMemorySize() % 16 != 0) registerSize++;
+			destinationData = std::vector<uint16_t>(registerSize, 0);
 
 			for(uint32_t j = startBit; j <= endBit; j++)
 			{
@@ -190,7 +192,7 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 				}
 			}
 
-			(*i)->packetReceived(destinationData);
+            peer->packetReceived(destinationData);
 		}
 	}
 	catch(const std::exception& ex)
@@ -849,13 +851,13 @@ void MyCentral::updatePeerAddresses(bool booting)
 			}
 			if(peer->isAnalog())
 			{
-				if(peer->isOutputDevice()) currentPots->analogOutputs.push_back(peer);
-				else currentPots->analogInputs.push_back(peer);
+				if(peer->getOutputMemorySize() > 0) currentPots->analogOutputs.push_back(peer);
+				if(peer->getInputMemorySize() > 0) currentPots->analogInputs.push_back(peer);
 			}
 			else
 			{
-				if(peer->isOutputDevice()) currentPots->digitalOutputs.push_back(peer);
-				else currentPots->digitalInputs.push_back(peer);
+                if(peer->getOutputMemorySize() > 0) currentPots->digitalOutputs.push_back(peer);
+                if(peer->getInputMemorySize() > 0) currentPots->digitalInputs.push_back(peer);
 			}
 			currentPots->analogInputBits = peer->getPhysicalInterface()->analogInputBits();
 			currentPots->analogOutputBits = peer->getPhysicalInterface()->analogOutputBits();
@@ -886,13 +888,13 @@ void MyCentral::updatePeerAddresses(bool booting)
 
 				if(nextPeer->isAnalog())
 				{
-					if(nextPeer->isOutputDevice()) currentPots->analogOutputs.push_back(nextPeer);
-					else currentPots->analogInputs.push_back(nextPeer);
+                    if(nextPeer->getOutputMemorySize() > 0) currentPots->analogOutputs.push_back(nextPeer);
+                    if(nextPeer->getInputMemorySize() > 0) currentPots->analogInputs.push_back(nextPeer);
 				}
 				else
 				{
-					if(nextPeer->isOutputDevice()) currentPots->digitalOutputs.push_back(nextPeer);
-					else currentPots->digitalInputs.push_back(nextPeer);
+                    if(nextPeer->getOutputMemorySize() > 0) currentPots->digitalOutputs.push_back(nextPeer);
+                    if(nextPeer->getInputMemorySize() > 0) currentPots->digitalInputs.push_back(nextPeer);
 				}
 
 				peer = nextPeer;
@@ -901,47 +903,47 @@ void MyCentral::updatePeerAddresses(bool booting)
 			uint32_t currentAddress = 0;
 			for(auto& peer : currentPots->analogInputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits && !booting)
+				if(currentAddress + peer->getInputMemorySize() > currentPots->analogInputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
 				peer->setAddress(currentAddress);
-				currentAddress += peer->getMemorySize();
-				usedAnalogInputBits += peer->getMemorySize();
+				currentAddress += peer->getInputMemorySize();
+				usedAnalogInputBits += peer->getInputMemorySize();
 			}
 
 			for(auto& peer : currentPots->digitalInputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits && !booting)
+				if(currentAddress + peer->getInputMemorySize() > currentPots->analogInputBits + currentPots->digitalInputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
 				peer->setAddress(currentAddress);
-				currentAddress += peer->getMemorySize();
-				usedDigitalInputBits += peer->getMemorySize();
+				currentAddress += peer->getInputMemorySize();
+				usedDigitalInputBits += peer->getInputMemorySize();
 			}
 
 			currentAddress = 0;
 			for(auto& peer : currentPots->analogOutputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits && !booting)
+				if(currentAddress + peer->getOutputMemorySize() > currentPots->analogOutputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
 				peer->setAddress(currentAddress);
-				currentAddress += peer->getMemorySize();
-				usedAnalogOutputBits += peer->getMemorySize();
+				currentAddress += peer->getOutputMemorySize();
+				usedAnalogOutputBits += peer->getOutputMemorySize();
 			}
 
 			for(auto& peer : currentPots->digitalOutputs)
 			{
-				if(currentAddress + peer->getMemorySize() > currentPots->analogOutputBits + currentPots->digitalOutputBits && !booting)
+				if(currentAddress + peer->getOutputMemorySize() > currentPots->analogOutputBits + currentPots->digitalOutputBits && !booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
 				peer->setAddress(currentAddress);
-				currentAddress += peer->getMemorySize();
-				usedDigitalOutputBits += peer->getMemorySize();
+				currentAddress += peer->getOutputMemorySize();
+				usedDigitalOutputBits += peer->getOutputMemorySize();
 			}
 
 			if(peersWithoutAddress[element.first] > 1)

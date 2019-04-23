@@ -149,9 +149,9 @@ bool MyPeer::isOutputDevice()
 	try
 	{
 		if(!_rpcDevice) return true;
-		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
+		auto functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return true;
-		return ((_deviceType & 0x2000) == 0x2000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->type == "Output";
+		return ((_deviceType & 0xF000) == 0x2000) || ((_deviceType & 0xF000) == 0x4000) || functionIterator->second->type == "Output";
 	}
 	catch(const std::exception& ex)
 	{
@@ -328,16 +328,17 @@ int32_t MyPeer::getStorageSize()
 		if(_registerSize > -1 || !_rpcDevice) return _registerSize;
 
 		int32_t bitSize = -1;
-		for(Functions::iterator i = _rpcDevice->functions.begin(); i != _rpcDevice->functions.end(); ++i)
+		for(auto& function : _rpcDevice->functions)
 		{
-			if(i->second->variablesId == "digital_output_valueset" || i->second->variablesId == "digital_input_valueset") bitSize++;
-			else if(i->second->variablesId.compare(0, 22, "analog_output_valueset") == 0 || i->second->variablesId.compare(0, 21, "analog_input_valueset") == 0)
+		    if(function.second->variables->memoryAddressStep != -1) bitSize += function.second->variables->memoryAddressStep;
+			else if(function.second->variablesId == "digital_output_valueset" || function.second->variablesId == "digital_input_valueset") bitSize++;
+			else if(function.second->variablesId.compare(0, 22, "analog_output_valueset") == 0 || function.second->variablesId.compare(0, 21, "analog_input_valueset") == 0)
 			{
-				PParameter parameter = i->second->variables->getParameter("LEVEL");
+				PParameter parameter = function.second->variables->getParameter("LEVEL");
 				if(!parameter) continue;
 				if(parameter->logical->type != BaseLib::DeviceDescription::ILogical::Type::tFloat) continue;
 				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->logical.get();
-				uint32_t range = (int32_t)levelParameter->maximumValue + ((int32_t)levelParameter->minimumValue * -1);
+				uint32_t range = std::abs((int32_t)levelParameter->maximumValue) + std::abs((int32_t)levelParameter->minimumValue);
 				while(range)
 				{
 					range = range >> 1;
@@ -369,7 +370,7 @@ bool MyPeer::isAnalog()
 		if(!_rpcDevice) return false;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return false;
-		return ((_deviceType & 0x3000) == 0x3000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
+		return ((_deviceType & 0xF000) == 0x3000) || ((_deviceType & 0xF000) == 0x4000) || functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
 	}
 	catch(const std::exception& ex)
     {
