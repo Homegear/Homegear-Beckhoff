@@ -7,7 +7,10 @@
 		</device>
 	</supportedDevices>
 	<properties>
+		<!-- Input -->
 		<memorySize>128</memorySize>
+		<!-- Output -->
+		<memorySize2>128</memorySize2>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">

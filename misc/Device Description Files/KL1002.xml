@@ -12,6 +12,7 @@
 		</device>
 	</supportedDevices>
 	<properties>
+		<!-- Input -->
 		<memorySize>2</memorySize>
 	</properties>
 	<functions>

@@ -7,7 +7,8 @@
 		</device>
 	</supportedDevices>
 	<properties>
-		<memorySize>32</memorySize>
+		<!-- Óutput -->
+		<memorySize2>32</memorySize2>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
