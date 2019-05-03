@@ -36,7 +36,10 @@ public:
 
 	std::shared_ptr<MainInterface>& getPhysicalInterface() { return _physicalInterface; }
 
-	virtual void setAddress(int32_t value);
+    size_t getInputAddress();
+	void setInputAddress(size_t value);
+    size_t getOutputAddress();
+    void setOutputAddress(size_t value);
 
 	bool isOutputDevice();
 	bool isAnalog();
@@ -88,6 +91,8 @@ protected:
 	uint64_t _nextPeerId = 0;
 	int32_t _bitSize = -1;
 	int32_t _registerSize = -1;
+	size_t _inputAddress = 0;
+    size_t _outputAddress = 0;
 	std::mutex _lastDataMutex;
 	std::map<int32_t, int64_t> _lastData;
 	std::map<int32_t, int32_t> _intervals;

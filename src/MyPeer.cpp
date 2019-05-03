@@ -116,32 +116,68 @@ void MyPeer::setNextPeerId(uint64_t value)
 	}
 }
 
-void MyPeer::setAddress(int32_t value)
+size_t MyPeer::getInputAddress()
 {
-	try
-	{
-		if(_address == value) return;
-		Peer::setAddress(value);
-		_bitSize = -1;
-		_registerSize = -1;
-		std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator channelIterator = configCentral.find(0);
-		if(channelIterator == configCentral.end()) return;
-		std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("ADDRESS");
-		if(parameterIterator != channelIterator->second.end())
-		{
-			std::vector<uint8_t> parameterData;
-			parameterIterator->second.rpcParameter->convertToPacket(BaseLib::PVariable(new BaseLib::Variable(_address)), parameterData);
-			parameterIterator->second.setBinaryData(parameterData);
-			if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
-			else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "ADDRESS", parameterData);
-			GD::out.printInfo("Info: Parameter ADDRESS of peer " + std::to_string(_peerID) + " and channel 0 was set to 0x" + BaseLib::HelperFunctions::getHexString(value) + ".");
-			raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
-		}
-	}
-	catch(const std::exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
+    return _inputAddress;
+}
+
+void MyPeer::setInputAddress(size_t value)
+{
+    try
+    {
+        if(_inputAddress == value) return;
+        _bitSize = -1;
+        _registerSize = -1;
+        auto channelIterator = configCentral.find(0);
+        if(channelIterator == configCentral.end()) return;
+        auto parameterIterator = channelIterator->second.find("INPUT_ADDRESS");
+        if(parameterIterator != channelIterator->second.end())
+        {
+            std::vector<uint8_t> parameterData;
+            parameterIterator->second.rpcParameter->convertToPacket(std::make_shared<BaseLib::Variable>(_inputAddress), parameterData);
+            parameterIterator->second.setBinaryData(parameterData);
+            if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
+            else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "INPUT_ADDRESS", parameterData);
+            GD::out.printInfo("Info: Parameter INPUT_ADDRESS of peer " + std::to_string(_peerID) + " and channel 0 was set to 0x" + BaseLib::HelperFunctions::getHexString(value) + ".");
+            raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+}
+
+size_t MyPeer::getOutputAddress()
+{
+    return _outputAddress;
+}
+
+void MyPeer::setOutputAddress(size_t value)
+{
+    try
+    {
+        if(_outputAddress == value) return;
+        _bitSize = -1;
+        _registerSize = -1;
+        auto channelIterator = configCentral.find(0);
+        if(channelIterator == configCentral.end()) return;
+        auto parameterIterator = channelIterator->second.find("OUTPUT_ADDRESS");
+        if(parameterIterator != channelIterator->second.end())
+        {
+            std::vector<uint8_t> parameterData;
+            parameterIterator->second.rpcParameter->convertToPacket(std::make_shared<BaseLib::Variable>(_outputAddress), parameterData);
+            parameterIterator->second.setBinaryData(parameterData);
+            if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
+            else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "OUTPUT_ADDRESS", parameterData);
+            GD::out.printInfo("Info: Parameter OUTPUT_ADDRESS of peer " + std::to_string(_peerID) + " and channel 0 was set to 0x" + BaseLib::HelperFunctions::getHexString(value) + ".");
+            raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
 }
 
 bool MyPeer::isOutputDevice()
@@ -512,7 +548,7 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 			std::lock_guard<std::mutex> statesGuard(_statesMutex);
 			if(!_states.empty())
 			{
-				std::shared_ptr<MyPacket> packet(new MyPacket(_address, _address + ((_states.size() - 1) * 16) + 15, _states));
+				std::shared_ptr<MyPacket> packet(new MyPacket(_outputAddress, _outputAddress + ((_states.size() - 1) * 16) + 15, _states));
 				_physicalInterface->setOutputData(packet);
 			}
 		}
@@ -1050,7 +1086,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 				while(statesIndex >= (signed)_states.size()) _states.push_back(0);
 				if(*value) _states.at(statesIndex) |= 1 << bitIndex;
 				else _states.at(statesIndex) &= ~(1 << bitIndex);
-				packet = std::make_shared<MyPacket>(_address + (statesIndex * 16) + bitIndex, _address + (statesIndex * 16) + bitIndex, (_states.at(statesIndex) >> bitIndex) & 1);
+				packet = std::make_shared<MyPacket>(_outputAddress + (statesIndex * 16) + bitIndex, _outputAddress + (statesIndex * 16) + bitIndex, (_states.at(statesIndex) >> bitIndex) & 1);
 			}
 
 			_physicalInterface->sendPacket(packet);
@@ -1122,7 +1158,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			}
 			uint32_t offset = isAnalog() ? 0 : _physicalInterface->digitalOutputOffset();
 			statesGuard.lock();
-			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16) + offset, _address + (statesIndex * 16) + offset + 15, _states.at(statesIndex)));
+			std::shared_ptr<MyPacket> packet(new MyPacket(_outputAddress + (statesIndex * 16) + offset, _outputAddress + (statesIndex * 16) + offset + 15, _states.at(statesIndex)));
 			statesGuard.unlock();
 			_physicalInterface->sendPacket(packet);
 		}

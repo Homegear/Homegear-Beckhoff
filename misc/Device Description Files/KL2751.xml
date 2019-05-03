@@ -7,6 +7,8 @@
 		</device>
 	</supportedDevices>
 	<properties>
+		<!-- Input -->
+		<memorySize>32</memorySize>
 		<!-- Óutput -->
 		<memorySize2>32</memorySize2>
 	</properties>
@@ -128,9 +130,26 @@
 		          <operationType>config</operationType>
 		        </physicalNone>
 			</parameter>
-			<parameter id="ADDRESS">
+			<parameter id="INPUT_ADDRESS">
 		        <properties>
-		          <label>Address (start bit)</label>
+		          <label>Input address (start bit)</label>
+		          <readable>true</readable>
+		          <writeable>false</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<minimumValue>0</minimumValue>
+		        	<maximumValue>4095</maximumValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="OUTPUT_ADDRESS">
+		        <properties>
+		          <label>Output address (start bit)</label>
 		          <readable>true</readable>
 		          <writeable>false</writeable>
 		          <casts>

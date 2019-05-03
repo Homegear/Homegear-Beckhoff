@@ -132,8 +132,6 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 		if(!myPacket) return false;
 		if(GD::bl->debugLevel >= 5) _bl->out.printDebug(BaseLib::HelperFunctions::getTimeString(myPacket->getTimeReceived()) + " New data received.");
 
-		myPacket->getData().push_back(0);
-
 		std::vector<std::shared_ptr<MyPeer>> peers;
 		{
 			std::lock_guard<std::mutex> peersGuard(_peersMutex);
@@ -157,7 +155,7 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 		std::vector<uint16_t> destinationData;
 		for(auto& peer : peers)
 		{
-			startBit = peer->getAddress() + (peer->isAnalog() ? 0 : peer->getPhysicalInterface()->digitalInputOffset());
+			startBit = peer->getInputAddress();
 			endBit = startBit + peer->getInputMemorySize() - 1;
 			offset = startBit % 16;
 			currentSourceByte = startBit / 16;
@@ -464,8 +462,10 @@ std::string MyCentral::handleCliCommand(std::string command)
 					stringStream << "      FILTERVALUE: The id of the peer to filter (e. g. 513)." << std::endl;
 					stringStream << "  SERIAL: Filter by serial number." << std::endl;
 					stringStream << "      FILTERVALUE: The serial number of the peer to filter (e. g. JEQ0554309)." << std::endl;
-					stringStream << "  ADDRESS: Filter by address." << std::endl;
-					stringStream << "      FILTERVALUE: The address of the peer to filter (e. g. 128)." << std::endl;
+					stringStream << "  INPUTADDRESS: Filter by input address." << std::endl;
+					stringStream << "      FILTERVALUE: The input address of the peer to filter (e. g. 128)." << std::endl;
+                    stringStream << "  OUTPUTADDRESS: Filter by output address." << std::endl;
+                    stringStream << "      FILTERVALUE: The output address of the peer to filter (e. g. 128)." << std::endl;
 					stringStream << "  NAME: Filter by name." << std::endl;
 					stringStream << "      FILTERVALUE: The part of the name to search for (e. g. \"1st floor\")." << std::endl;
 					stringStream << "  TYPE: Filter by device type." << std::endl;
@@ -482,7 +482,8 @@ std::string MyCentral::handleCliCommand(std::string command)
 				const int32_t idWidth = 8;
 				const int32_t nameWidth = 25;
 				const int32_t serialWidth = 13;
-				const int32_t addressWidth = 7;
+				const int32_t inputAddressWidth = 14;
+                const int32_t outputAddressWidth = 14;
 				const int32_t nextIdWidth = 8;
 				const int32_t typeWidth1 = 4;
 				const int32_t typeWidth2 = 25;
@@ -494,23 +495,25 @@ std::string MyCentral::handleCliCommand(std::string command)
 					<< std::setw(idWidth) << "ID" << bar
 					<< nameHeader << bar
 					<< std::setw(serialWidth) << "Serial Number" << bar
-					<< std::setw(addressWidth) << "Address" << bar
+					<< std::setw(inputAddressWidth) << "Input address" << bar
+					<< std::setw(outputAddressWidth) << "Output address" << bar
 					<< std::setw(nextIdWidth) << "Next ID" << bar
 					<< std::setw(typeWidth1) << "Type" << bar
 					<< typeStringHeader
 					<< std::endl;
-				stringStream << "─────────┼───────────────────────────┼───────────────┼─────────┼──────────┼──────┼───────────────────────────" << std::endl;
+				stringStream << "─────────┼───────────────────────────┼───────────────┼────────────────┼────────────────┼──────────┼──────┼───────────────────────────" << std::endl;
 				stringStream << std::setfill(' ')
 					<< std::setw(idWidth) << " " << bar
 					<< std::setw(nameWidth) << " " << bar
 					<< std::setw(serialWidth) << " " << bar
-					<< std::setw(addressWidth) << " " << bar
+					<< std::setw(inputAddressWidth) << " " << bar
+					<< std::setw(outputAddressWidth) << " " << bar
 					<< std::setw(nextIdWidth) << " " << bar
 					<< std::setw(typeWidth1) << " " << bar
 					<< std::setw(typeWidth2)
 					<< std::endl;
 				_peersMutex.lock();
-				for(std::map<uint64_t, std::shared_ptr<BaseLib::Systems::Peer>>::iterator i = _peersById.begin(); i != _peersById.end(); ++i)
+				for(auto i = _peersById.begin(); i != _peersById.end(); ++i)
 				{
 					PMyPeer myPeer = std::dynamic_pointer_cast<MyPeer>(i->second);
 					if(filterType == "id")
@@ -527,11 +530,16 @@ std::string MyCentral::handleCliCommand(std::string command)
 					{
 						if(i->second->getSerialNumber() != filterValue) continue;
 					}
-					else if(filterType == "address")
+					else if(filterType == "inputaddress")
 					{
-						int32_t address = BaseLib::Math::getNumber(filterValue, true);
-						if(i->second->getAddress() != address) continue;
+						size_t address = BaseLib::Math::getUnsignedNumber(filterValue, true);
+						if(myPeer->getInputAddress() != address) continue;
 					}
+                    else if(filterType == "outputaddress")
+                    {
+                        size_t address = BaseLib::Math::getUnsignedNumber(filterValue, true);
+                        if(myPeer->getOutputAddress() != address) continue;
+                    }
 					else if(filterType == "type")
 					{
 						int32_t deviceType = BaseLib::Math::getNumber(filterValue, true);
@@ -549,7 +557,8 @@ std::string MyCentral::handleCliCommand(std::string command)
 					else name.resize(nameWidth + (name.size() - nameSize), ' ');
 					stringStream << name << bar
 						<< std::setw(serialWidth) << i->second->getSerialNumber() << bar
-						<< std::setw(addressWidth) << i->second->getAddress() << bar
+						<< std::setw(inputAddressWidth) << myPeer->getInputAddress() << bar
+						<< std::setw(outputAddressWidth) << myPeer->getOutputAddress() << bar
 						<< std::setw(nextIdWidth) << myPeer->getNextPeerId() << bar
 						<< std::setw(typeWidth1) << BaseLib::HelperFunctions::getHexString(i->second->getDeviceType(), 4) << bar;
 					if(i->second->getRpcDevice())
@@ -569,7 +578,7 @@ std::string MyCentral::handleCliCommand(std::string command)
 					stringStream << std::endl << std::dec;
 				}
 				_peersMutex.unlock();
-				stringStream << "─────────┴───────────────────────────┴───────────────┴─────────┴──────────┴──────┴───────────────────────────" << std::endl;
+				stringStream << "─────────┴───────────────────────────┴───────────────┴────────────────┴────────────────┴──────────┴──────┴───────────────────────────" << std::endl;
 
 				return stringStream.str();
 			}
@@ -907,7 +916,7 @@ void MyCentral::updatePeerAddresses(bool booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
-				peer->setAddress(currentAddress);
+				peer->setInputAddress(currentAddress);
 				currentAddress += peer->getInputMemorySize();
 				usedAnalogInputBits += peer->getInputMemorySize();
 			}
@@ -918,7 +927,7 @@ void MyCentral::updatePeerAddresses(bool booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital input bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
-				peer->setAddress(currentAddress);
+				peer->setInputAddress(currentAddress);
 				currentAddress += peer->getInputMemorySize();
 				usedDigitalInputBits += peer->getInputMemorySize();
 			}
@@ -930,7 +939,7 @@ void MyCentral::updatePeerAddresses(bool booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of analog output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
-				peer->setAddress(currentAddress);
+				peer->setOutputAddress(currentAddress);
 				currentAddress += peer->getOutputMemorySize();
 				usedAnalogOutputBits += peer->getOutputMemorySize();
 			}
@@ -941,7 +950,7 @@ void MyCentral::updatePeerAddresses(bool booting)
 				{
 					GD::out.printError("Error: The calculated address of peer " + std::to_string(peer->getID()) + " exceeds number of digital output bits returned by interface " + element.first + ". Recheck that the cards configured in Homegear mirror the actually installed devices.");
 				}
-				peer->setAddress(currentAddress);
+				peer->setOutputAddress(currentAddress);
 				currentAddress += peer->getOutputMemorySize();
 				usedDigitalOutputBits += peer->getOutputMemorySize();
 			}
