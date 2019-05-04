@@ -89,8 +89,6 @@ protected:
 	bool _shuttingDown = false;
 	std::shared_ptr<MainInterface> _physicalInterface;
 	uint64_t _nextPeerId = 0;
-	int32_t _bitSize = -1;
-	int32_t _registerSize = -1;
 	size_t _inputAddress = 0;
     size_t _outputAddress = 0;
 	std::mutex _lastDataMutex;
@@ -108,8 +106,6 @@ protected:
     virtual void saveVariables();
     std::vector<char> serializeStates();
 	void unserializeStates(std::vector<char>& data);
-
-    virtual int32_t getStorageSize();
 
     virtual void setPhysicalInterface(std::shared_ptr<MainInterface> interface);
 

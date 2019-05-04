@@ -126,8 +126,7 @@ void MyPeer::setInputAddress(size_t value)
     try
     {
         if(_inputAddress == value) return;
-        _bitSize = -1;
-        _registerSize = -1;
+        _inputAddress = value;
         auto channelIterator = configCentral.find(0);
         if(channelIterator == configCentral.end()) return;
         auto parameterIterator = channelIterator->second.find("INPUT_ADDRESS");
@@ -158,8 +157,7 @@ void MyPeer::setOutputAddress(size_t value)
     try
     {
         if(_outputAddress == value) return;
-        _bitSize = -1;
-        _registerSize = -1;
+        _outputAddress = value;
         auto channelIterator = configCentral.find(0);
         if(channelIterator == configCentral.end()) return;
         auto parameterIterator = channelIterator->second.find("OUTPUT_ADDRESS");
@@ -355,48 +353,6 @@ std::string MyPeer::printConfig()
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
     return "";
-}
-
-int32_t MyPeer::getStorageSize()
-{
-	try
-	{
-		if(_registerSize > -1 || !_rpcDevice) return _registerSize;
-
-		int32_t bitSize = -1;
-		for(auto& function : _rpcDevice->functions)
-		{
-		    if(function.second->variables->memoryAddressStep != -1) bitSize += function.second->variables->memoryAddressStep;
-			else if(function.second->variablesId == "digital_output_valueset" || function.second->variablesId == "digital_input_valueset") bitSize++;
-			else if(function.second->variablesId.compare(0, 22, "analog_output_valueset") == 0 || function.second->variablesId.compare(0, 21, "analog_input_valueset") == 0)
-			{
-				PParameter parameter = function.second->variables->getParameter("LEVEL");
-				if(!parameter) continue;
-				if(parameter->logical->type != BaseLib::DeviceDescription::ILogical::Type::tFloat) continue;
-				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->logical.get();
-				uint32_t range = std::abs((int32_t)levelParameter->maximumValue) + std::abs((int32_t)levelParameter->minimumValue);
-				while(range)
-				{
-					range = range >> 1;
-					bitSize++;
-				}
-			}
-		}
-		if(bitSize == 0)
-		{
-			_registerSize = 0;
-			return 0;
-		}
-
-		_registerSize = (bitSize / 16) + 1;
-		_bitSize = bitSize + 1;
-		return _registerSize;
-	}
-	catch(const std::exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    return 0;
 }
 
 bool MyPeer::isAnalog()
