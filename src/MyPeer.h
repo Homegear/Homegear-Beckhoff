@@ -50,6 +50,7 @@ public:
 
 	virtual std::string handleCliCommand(std::string command);
 	void packetReceived(std::vector<uint16_t>& packet);
+	void setOutputData();
 
 	virtual bool load(BaseLib::Systems::ICentral* central);
     virtual void savePeers() {}

@@ -500,15 +500,6 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 		serviceMessages.reset(new BaseLib::Systems::ServiceMessages(_bl, _peerID, _serialNumber, this));
 		serviceMessages->load();
 
-		{
-			std::lock_guard<std::mutex> statesGuard(_statesMutex);
-			if(!_states.empty())
-			{
-				std::shared_ptr<MyPacket> packet(new MyPacket(_outputAddress, _outputAddress + ((_states.size() - 1) * 16) + 15, _states));
-				_physicalInterface->setOutputData(packet);
-			}
-		}
-
 		for(std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator i = configCentral.begin(); i != configCentral.end(); ++i)
 		{
 			if(i->first == 0)
@@ -528,7 +519,21 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 			int32_t outputMin = 0;
 			int32_t outputMax = 0;
 
-			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = i->second.find("INTERVAL");
+            std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = i->second.find("INPUT_ADDRESS");
+            if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+            {
+                std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+                _inputAddress = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+            }
+
+            parameterIterator = i->second.find("OUTPUT_ADDRESS");
+            if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+            {
+                std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+                _outputAddress = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+            }
+
+			parameterIterator = i->second.find("INTERVAL");
 			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
 			{
 				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
@@ -579,6 +584,8 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 
 		}
 
+		setOutputData();
+
 		return true;
 	}
 	catch(const std::exception& ex)
@@ -586,6 +593,23 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
     return false;
+}
+
+void MyPeer::setOutputData()
+{
+    try
+    {
+        std::lock_guard<std::mutex> statesGuard(_statesMutex);
+        if(!_states.empty())
+        {
+            std::shared_ptr<MyPacket> packet(new MyPacket(_outputAddress, _outputAddress + ((_states.size() - 1) * 16) + 15, _states));
+            _physicalInterface->setOutputData(packet);
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
 }
 
 void MyPeer::packetReceived(std::vector<uint16_t>& packet)
@@ -1026,7 +1050,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
                 raiseEvent(clientInfo->initInterfaceId, _peerID, channel, valueKeys, values);
                 raiseRPCEvent(clientInfo->initInterfaceId, _peerID, channel, address, valueKeys, values);
 			}
-			return PVariable(new Variable(VariableType::tVoid));
+			return std::make_shared<Variable>(VariableType::tVoid);
 		}
 		else if(rpcParameter->physical->operationType != IPhysical::OperationType::Enum::command) return Variable::createError(-6, "Parameter is not settable.");
         if(rpcParameter->setPackets.empty() && !rpcParameter->writeable) return Variable::createError(-6, "parameter is read only");
@@ -1114,7 +1138,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			}
 			uint32_t offset = isAnalog() ? 0 : _physicalInterface->digitalOutputOffset();
 			statesGuard.lock();
-			std::shared_ptr<MyPacket> packet(new MyPacket(_outputAddress + (statesIndex * 16) + offset, _outputAddress + (statesIndex * 16) + offset + 15, _states.at(statesIndex)));
+			auto packet = std::make_shared<MyPacket>(_outputAddress + (statesIndex * 16) + offset, _outputAddress + (statesIndex * 16) + offset + 15, _states.at(statesIndex));
 			statesGuard.unlock();
 			_physicalInterface->sendPacket(packet);
 		}
@@ -1125,17 +1149,17 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 		auto configChannelIterator = configCentral.find(0);
 		if(configChannelIterator != configCentral.end())
 		{
-			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = configChannelIterator->second.find("FAST_MODE");
-			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator2 = configChannelIterator->second.find("FAST_MODE");
+			if(parameterIterator2 != configChannelIterator->second.end() && parameterIterator2->second.rpcParameter)
 			{
-				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-				fastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+				std::vector<uint8_t> parameterData = parameterIterator2->second.getBinaryData();
+				fastMode = parameterIterator2->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
 			}
-			parameterIterator = configChannelIterator->second.find("SUPER_FAST_MODE");
-			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+            parameterIterator2 = configChannelIterator->second.find("SUPER_FAST_MODE");
+			if(parameterIterator2 != configChannelIterator->second.end() && parameterIterator2->second.rpcParameter)
 			{
-				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-				superFastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+				std::vector<uint8_t> parameterData = parameterIterator2->second.getBinaryData();
+				superFastMode = parameterIterator2->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
 			}
 		}
 
@@ -1160,7 +1184,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
             raiseRPCEvent(clientInfo->initInterfaceId, _peerID, channel, address, valueKeys, values);
 		}
 
-		return PVariable(new Variable(VariableType::tVoid));
+		return std::make_shared<Variable>(VariableType::tVoid);
 	}
 	catch(const std::exception& ex)
     {
