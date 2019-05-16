@@ -28,7 +28,7 @@ MainInterface::~MainInterface()
 	stopListening();
 }
 
-int32_t MainInterface::getMessageCounter()
+uint32_t MainInterface::getMessageCounter()
 {
 	return _messageCounter.load(std::memory_order_acquire);
 }
