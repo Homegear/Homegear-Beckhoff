@@ -36,18 +36,21 @@ public:
 
 	std::shared_ptr<MainInterface>& getPhysicalInterface() { return _physicalInterface; }
 
-	virtual void setAddress(int32_t value);
+    size_t getInputAddress();
+	void setInputAddress(size_t value);
+    size_t getOutputAddress();
+    void setOutputAddress(size_t value);
 
 	bool isOutputDevice();
 	bool isAnalog();
 	uint64_t getNextPeerId() { return _nextPeerId; }
 	void setNextPeerId(uint64_t value);
-	int32_t getMemorySize() { if(!_rpcDevice) return -1; return _rpcDevice->memorySize; }
-	int32_t getBitSize() { if(_bitSize == -1) getStorageSize(); return _bitSize; }
-	int32_t getRegisterSize() { if(_registerSize == -1) getStorageSize(); return _registerSize; }
+	int32_t getInputMemorySize() { if(!_rpcDevice) return -1; return _rpcDevice->memorySize; }
+    int32_t getOutputMemorySize() { if(!_rpcDevice) return -1; return _rpcDevice->memorySize2; }
 
 	virtual std::string handleCliCommand(std::string command);
 	void packetReceived(std::vector<uint16_t>& packet);
+	void setOutputData();
 
 	virtual bool load(BaseLib::Systems::ICentral* central);
     virtual void savePeers() {}
@@ -87,8 +90,8 @@ protected:
 	bool _shuttingDown = false;
 	std::shared_ptr<MainInterface> _physicalInterface;
 	uint64_t _nextPeerId = 0;
-	int32_t _bitSize = -1;
-	int32_t _registerSize = -1;
+	size_t _inputAddress = 0;
+    size_t _outputAddress = 0;
 	std::mutex _lastDataMutex;
 	std::map<int32_t, int64_t> _lastData;
 	std::map<int32_t, int32_t> _intervals;
@@ -104,8 +107,6 @@ protected:
     virtual void saveVariables();
     std::vector<char> serializeStates();
 	void unserializeStates(std::vector<char>& data);
-
-    virtual int32_t getStorageSize();
 
     virtual void setPhysicalInterface(std::shared_ptr<MainInterface> interface);
 

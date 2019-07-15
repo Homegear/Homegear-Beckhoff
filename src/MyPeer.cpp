@@ -6,6 +6,8 @@
 #include "MyPacket.h"
 #include "MyCentral.h"
 
+#include <iomanip>
+
 namespace MyFamily
 {
 std::shared_ptr<BaseLib::Systems::ICentral> MyPeer::getCentral()
@@ -19,14 +21,6 @@ std::shared_ptr<BaseLib::Systems::ICentral> MyPeer::getCentral()
 	catch(const std::exception& ex)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 	}
 	return std::shared_ptr<BaseLib::Systems::ICentral>();
 }
@@ -51,14 +45,6 @@ MyPeer::~MyPeer()
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-	}
 }
 
 void MyPeer::init()
@@ -70,14 +56,6 @@ void MyPeer::init()
 	catch(const std::exception& ex)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 	}
 }
 
@@ -97,14 +75,6 @@ void MyPeer::homegearStarted()
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-	}
 }
 
 void MyPeer::homegearShuttingDown()
@@ -117,14 +87,6 @@ void MyPeer::homegearShuttingDown()
 	catch(const std::exception& ex)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 	}
 }
 
@@ -152,50 +114,68 @@ void MyPeer::setNextPeerId(uint64_t value)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-	}
 }
 
-void MyPeer::setAddress(int32_t value)
+size_t MyPeer::getInputAddress()
 {
-	try
-	{
-		if(_address == value) return;
-		Peer::setAddress(value);
-		_bitSize = -1;
-		_registerSize = -1;
-		std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator channelIterator = configCentral.find(0);
-		if(channelIterator == configCentral.end()) return;
-		std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = channelIterator->second.find("ADDRESS");
-		if(parameterIterator != channelIterator->second.end())
-		{
-			std::vector<uint8_t> parameterData;
-			parameterIterator->second.rpcParameter->convertToPacket(BaseLib::PVariable(new BaseLib::Variable(_address)), parameterData);
-			parameterIterator->second.setBinaryData(parameterData);
-			if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
-			else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "ADDRESS", parameterData);
-			GD::out.printInfo("Info: Parameter ADDRESS of peer " + std::to_string(_peerID) + " and channel 0 was set to 0x" + BaseLib::HelperFunctions::getHexString(value) + ".");
-			raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
-		}
-	}
-	catch(const std::exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-	}
+    return _inputAddress;
+}
+
+void MyPeer::setInputAddress(size_t value)
+{
+    try
+    {
+        if(_inputAddress == value) return;
+        _inputAddress = value;
+        auto channelIterator = configCentral.find(0);
+        if(channelIterator == configCentral.end()) return;
+        auto parameterIterator = channelIterator->second.find("INPUT_ADDRESS");
+        if(parameterIterator != channelIterator->second.end())
+        {
+            std::vector<uint8_t> parameterData;
+            parameterIterator->second.rpcParameter->convertToPacket(std::make_shared<BaseLib::Variable>(_inputAddress), parameterData);
+            parameterIterator->second.setBinaryData(parameterData);
+            if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
+            else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "INPUT_ADDRESS", parameterData);
+            GD::out.printInfo("Info: Parameter INPUT_ADDRESS of peer " + std::to_string(_peerID) + " and channel 0 was set to 0x" + BaseLib::HelperFunctions::getHexString(value) + ".");
+            raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
+}
+
+size_t MyPeer::getOutputAddress()
+{
+    return _outputAddress;
+}
+
+void MyPeer::setOutputAddress(size_t value)
+{
+    try
+    {
+        if(_outputAddress == value) return;
+        _outputAddress = value;
+        auto channelIterator = configCentral.find(0);
+        if(channelIterator == configCentral.end()) return;
+        auto parameterIterator = channelIterator->second.find("OUTPUT_ADDRESS");
+        if(parameterIterator != channelIterator->second.end())
+        {
+            std::vector<uint8_t> parameterData;
+            parameterIterator->second.rpcParameter->convertToPacket(std::make_shared<BaseLib::Variable>(_outputAddress), parameterData);
+            parameterIterator->second.setBinaryData(parameterData);
+            if(parameterIterator->second.databaseId > 0) saveParameter(parameterIterator->second.databaseId, parameterData);
+            else saveParameter(0, ParameterGroup::Type::Enum::config, 0, "OUTPUT_ADDRESS", parameterData);
+            GD::out.printInfo("Info: Parameter OUTPUT_ADDRESS of peer " + std::to_string(_peerID) + " and channel 0 was set to 0x" + BaseLib::HelperFunctions::getHexString(value) + ".");
+            raiseRPCUpdateDevice(_peerID, 0, _serialNumber + ":0", 0);
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
 }
 
 bool MyPeer::isOutputDevice()
@@ -203,21 +183,13 @@ bool MyPeer::isOutputDevice()
 	try
 	{
 		if(!_rpcDevice) return true;
-		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
+		auto functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return true;
-		return ((_deviceType & 0x2000) == 0x2000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->type == "Output";
+		return ((_deviceType & 0xF000) == 0x2000) || ((_deviceType & 0xF000) == 0x4000) || functionIterator->second->type == "Output";
 	}
 	catch(const std::exception& ex)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 	}
 	return true;
 }
@@ -227,14 +199,16 @@ std::string MyPeer::handleCliCommand(std::string command)
 	try
 	{
 		std::ostringstream stringStream;
-
+        std::vector<std::string> arguments;
+        bool showHelp = false;
 		if(command == "help")
 		{
 			stringStream << "List of commands:" << std::endl << std::endl;
 			stringStream << "For more information about the individual command type: COMMAND help" << std::endl << std::endl;
-			stringStream << "unselect\t\tUnselect this peer" << std::endl;
-			stringStream << "channel count\t\tPrint the number of channels of this peer" << std::endl;
-			stringStream << "config print\t\tPrints all configuration parameters and their values" << std::endl;
+			stringStream << "unselect       Unselect this peer" << std::endl;
+			stringStream << "channel count  Print the number of channels of this peer" << std::endl;
+			stringStream << "config print   Prints all configuration parameters and their values" << std::endl;
+            stringStream << "states reset   Resets the state array" << std::endl;
 			return stringStream.str();
 		}
 		if(command.compare(0, 13, "channel count") == 0)
@@ -294,19 +268,33 @@ std::string MyPeer::handleCliCommand(std::string command)
 
 			return printConfig();
 		}
+        else if(BaseLib::HelperFunctions::checkCliCommand(command, "states reset", "sr", "", 0, arguments, showHelp))
+        {
+            if(showHelp)
+            {
+                stringStream << "Description: This command resets the peer's states array and all of the peer's values." << std::endl;
+                stringStream << "Usage: states reset" << std::endl << std::endl;
+                stringStream << "Parameters:" << std::endl;
+                stringStream << "  There are no parameters." << std::endl;
+                return stringStream.str();
+            }
+
+            std::vector<uint16_t> states;
+            {
+                std::lock_guard<std::mutex> statesGuard(_statesMutex);
+                std::fill(_states.begin(), _states.end(), 0);
+                states = _states;
+            }
+
+            packetReceived(states);
+
+            return "The states array was reset successfully.\n";
+        }
 		else return "Unknown command.\n";
 	}
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return "Error executing command. See log file for more details.\n";
 }
@@ -364,64 +352,7 @@ std::string MyPeer::printConfig()
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
     return "";
-}
-
-int32_t MyPeer::getStorageSize()
-{
-	try
-	{
-		if(_registerSize > -1 || !_rpcDevice) return _registerSize;
-
-		int32_t bitSize = -1;
-		for(Functions::iterator i = _rpcDevice->functions.begin(); i != _rpcDevice->functions.end(); ++i)
-		{
-			if(i->second->variablesId == "digital_output_valueset" || i->second->variablesId == "digital_input_valueset") bitSize++;
-			else if(i->second->variablesId.compare(0, 22, "analog_output_valueset") == 0 || i->second->variablesId.compare(0, 21, "analog_input_valueset") == 0)
-			{
-				PParameter parameter = i->second->variables->getParameter("LEVEL");
-				if(!parameter) continue;
-				if(parameter->logical->type != BaseLib::DeviceDescription::ILogical::Type::tFloat) continue;
-				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->logical.get();
-				uint32_t range = (int32_t)levelParameter->maximumValue + ((int32_t)levelParameter->minimumValue * -1);
-				while(range)
-				{
-					range = range >> 1;
-					bitSize++;
-				}
-			}
-		}
-		if(bitSize == 0)
-		{
-			_registerSize = 0;
-			return 0;
-		}
-
-		_registerSize = (bitSize / 16) + 1;
-		_bitSize = bitSize + 1;
-		return _registerSize;
-	}
-	catch(const std::exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
-    return 0;
 }
 
 bool MyPeer::isAnalog()
@@ -431,19 +362,11 @@ bool MyPeer::isAnalog()
 		if(!_rpcDevice) return false;
 		Functions::iterator functionIterator = _rpcDevice->functions.find(1);
 		if(functionIterator == _rpcDevice->functions.end()) return false;
-		return ((_deviceType & 0x3000) == 0x3000) || ((_deviceType & 0x4000) == 0x4000) || functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
+		return ((_deviceType & 0xF000) == 0x3000) || ((_deviceType & 0xF000) == 0x4000) || functionIterator->second->variablesId.compare(0, 7, "analog_") == 0;
 	}
 	catch(const std::exception& ex)
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return false;
 }
@@ -470,14 +393,6 @@ void MyPeer::setPhysicalInterface(std::shared_ptr<MainInterface> interface)
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
 }
 
 std::vector<char> MyPeer::serializeStates()
@@ -498,14 +413,6 @@ std::vector<char> MyPeer::serializeStates()
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
     return std::vector<char>();
 }
 
@@ -523,14 +430,6 @@ void MyPeer::unserializeStates(std::vector<char>& data)
 	catch(const std::exception& ex)
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 }
 
@@ -563,14 +462,6 @@ void MyPeer::loadVariables(BaseLib::Systems::ICentral* central, std::shared_ptr<
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
 }
 
 void MyPeer::saveVariables()
@@ -586,14 +477,6 @@ void MyPeer::saveVariables()
 	catch(const std::exception& ex)
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
 }
 
@@ -617,15 +500,6 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 		serviceMessages.reset(new BaseLib::Systems::ServiceMessages(_bl, _peerID, _serialNumber, this));
 		serviceMessages->load();
 
-		{
-			std::lock_guard<std::mutex> statesGuard(_statesMutex);
-			if(!_states.empty())
-			{
-				std::shared_ptr<MyPacket> packet(new MyPacket(_address, _address + ((_states.size() - 1) * 16) + 15, _states));
-				_physicalInterface->setOutputData(packet);
-			}
-		}
-
 		for(std::unordered_map<uint32_t, std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>>::iterator i = configCentral.begin(); i != configCentral.end(); ++i)
 		{
 			if(i->first == 0)
@@ -645,7 +519,21 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 			int32_t outputMin = 0;
 			int32_t outputMax = 0;
 
-			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = i->second.find("INTERVAL");
+            std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = i->second.find("INPUT_ADDRESS");
+            if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+            {
+                std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+                _inputAddress = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+            }
+
+            parameterIterator = i->second.find("OUTPUT_ADDRESS");
+            if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
+            {
+                std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
+                _outputAddress = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->integerValue;
+            }
+
+			parameterIterator = i->second.find("INTERVAL");
 			if(parameterIterator != i->second.end() && parameterIterator->second.rpcParameter)
 			{
 				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
@@ -696,21 +584,32 @@ bool MyPeer::load(BaseLib::Systems::ICentral* central)
 
 		}
 
+		setOutputData();
+
 		return true;
 	}
 	catch(const std::exception& ex)
     {
     	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-    	GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
     return false;
+}
+
+void MyPeer::setOutputData()
+{
+    try
+    {
+        std::lock_guard<std::mutex> statesGuard(_statesMutex);
+        if(!_states.empty())
+        {
+            std::shared_ptr<MyPacket> packet(new MyPacket(_outputAddress, _outputAddress + ((_states.size() - 1) * 16) + 15, _states));
+            _physicalInterface->setOutputData(packet);
+        }
+    }
+    catch(const std::exception& ex)
+    {
+        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
+    }
 }
 
 void MyPeer::packetReceived(std::vector<uint16_t>& packet)
@@ -882,14 +781,6 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
 	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-	}
 }
 
 PParameterGroup MyPeer::getParameterSet(int32_t channel, ParameterGroup::Type::Enum type)
@@ -904,14 +795,6 @@ PParameterGroup MyPeer::getParameterSet(int32_t channel, ParameterGroup::Type::E
 	catch(const std::exception& ex)
 	{
 		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(BaseLib::Exception& ex)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-	}
-	catch(...)
-	{
-		GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
 	}
 	return PParameterGroup();
 }
@@ -934,14 +817,6 @@ bool MyPeer::getAllValuesHook2(PRpcClientInfo clientInfo, PParameter parameter, 
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
     return false;
 }
 
@@ -962,14 +837,6 @@ bool MyPeer::getParamsetHook2(PRpcClientInfo clientInfo, PParameter parameter, u
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return false;
 }
@@ -1119,14 +986,6 @@ PVariable MyPeer::putParamset(BaseLib::PRpcClientInfo clientInfo, int32_t channe
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
     }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
-    }
     return Variable::createError(-32500, "Unknown application error.");
 }
 
@@ -1145,14 +1004,6 @@ PVariable MyPeer::setInterface(BaseLib::PRpcClientInfo clientInfo, std::string i
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return Variable::createError(-32500, "Unknown application error.");
 }
@@ -1199,7 +1050,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
                 raiseEvent(clientInfo->initInterfaceId, _peerID, channel, valueKeys, values);
                 raiseRPCEvent(clientInfo->initInterfaceId, _peerID, channel, address, valueKeys, values);
 			}
-			return PVariable(new Variable(VariableType::tVoid));
+			return std::make_shared<Variable>(VariableType::tVoid);
 		}
 		else if(rpcParameter->physical->operationType != IPhysical::OperationType::Enum::command) return Variable::createError(-6, "Parameter is not settable.");
         if(rpcParameter->setPackets.empty() && !rpcParameter->writeable) return Variable::createError(-6, "parameter is read only");
@@ -1215,7 +1066,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 				while(statesIndex >= (signed)_states.size()) _states.push_back(0);
 				if(*value) _states.at(statesIndex) |= 1 << bitIndex;
 				else _states.at(statesIndex) &= ~(1 << bitIndex);
-				packet = std::make_shared<MyPacket>(_address + (statesIndex * 16) + bitIndex, _address + (statesIndex * 16) + bitIndex, (_states.at(statesIndex) >> bitIndex) & 1);
+				packet = std::make_shared<MyPacket>(_outputAddress + (statesIndex * 16) + bitIndex, _outputAddress + (statesIndex * 16) + bitIndex, (_states.at(statesIndex) >> bitIndex) & 1);
 			}
 
 			_physicalInterface->sendPacket(packet);
@@ -1287,7 +1138,7 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 			}
 			uint32_t offset = isAnalog() ? 0 : _physicalInterface->digitalOutputOffset();
 			statesGuard.lock();
-			std::shared_ptr<MyPacket> packet(new MyPacket(_address + (statesIndex * 16) + offset, _address + (statesIndex * 16) + offset + 15, _states.at(statesIndex)));
+			auto packet = std::make_shared<MyPacket>(_outputAddress + (statesIndex * 16) + offset, _outputAddress + (statesIndex * 16) + offset + 15, _states.at(statesIndex));
 			statesGuard.unlock();
 			_physicalInterface->sendPacket(packet);
 		}
@@ -1298,17 +1149,17 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
 		auto configChannelIterator = configCentral.find(0);
 		if(configChannelIterator != configCentral.end())
 		{
-			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator = configChannelIterator->second.find("FAST_MODE");
-			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+			std::unordered_map<std::string, BaseLib::Systems::RpcConfigurationParameter>::iterator parameterIterator2 = configChannelIterator->second.find("FAST_MODE");
+			if(parameterIterator2 != configChannelIterator->second.end() && parameterIterator2->second.rpcParameter)
 			{
-				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-				fastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+				std::vector<uint8_t> parameterData = parameterIterator2->second.getBinaryData();
+				fastMode = parameterIterator2->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
 			}
-			parameterIterator = configChannelIterator->second.find("SUPER_FAST_MODE");
-			if(parameterIterator != configChannelIterator->second.end() && parameterIterator->second.rpcParameter)
+            parameterIterator2 = configChannelIterator->second.find("SUPER_FAST_MODE");
+			if(parameterIterator2 != configChannelIterator->second.end() && parameterIterator2->second.rpcParameter)
 			{
-				std::vector<uint8_t> parameterData = parameterIterator->second.getBinaryData();
-				superFastMode = parameterIterator->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
+				std::vector<uint8_t> parameterData = parameterIterator2->second.getBinaryData();
+				superFastMode = parameterIterator2->second.rpcParameter->convertFromPacket(parameterData)->booleanValue;
 			}
 		}
 
@@ -1333,19 +1184,11 @@ PVariable MyPeer::setValue(BaseLib::PRpcClientInfo clientInfo, uint32_t channel,
             raiseRPCEvent(clientInfo->initInterfaceId, _peerID, channel, address, valueKeys, values);
 		}
 
-		return PVariable(new Variable(VariableType::tVoid));
+		return std::make_shared<Variable>(VariableType::tVoid);
 	}
 	catch(const std::exception& ex)
     {
         GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(BaseLib::Exception& ex)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__, ex.what());
-    }
-    catch(...)
-    {
-        GD::out.printEx(__FILE__, __LINE__, __PRETTY_FUNCTION__);
     }
     return Variable::createError(-32500, "Unknown application error. See error log for more details.");
 }
