@@ -19,7 +19,6 @@ MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterface
     _modbus = std::make_shared<BaseLib::Modbus>(_bl, modbusInfo);
 
 	memset(&_bk9000Info, 0, sizeof(_bk9000Info));
-	_outputsEnabled = false;
 
 	signal(SIGPIPE, SIG_IGN);
 }
@@ -27,6 +26,11 @@ MainInterface::MainInterface(std::shared_ptr<BaseLib::Systems::PhysicalInterface
 MainInterface::~MainInterface()
 {
 	stopListening();
+}
+
+uint32_t MainInterface::getMessageCounter()
+{
+	return _messageCounter.load(std::memory_order_acquire);
 }
 
 std::vector<uint16_t> MainInterface::getReadBuffer()
@@ -279,6 +283,8 @@ void MainInterface::listen()
 						raisePacketReceived(packet);
 					}
 				}
+
+				_messageCounter.fetch_add(1, std::memory_order_acq_rel);
 
 				endTime = BaseLib::HelperFunctions::getTimeMicroseconds();
 				timeToSleep = (_settings->interval * 1000) - (endTime - startTime);
