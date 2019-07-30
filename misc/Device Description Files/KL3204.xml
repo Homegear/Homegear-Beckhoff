@@ -1,14 +1,16 @@
 <homegearDevice version="1">
 	<supportedDevices>
-		<device id="Beckhoff KL3064">
-			<description>4-channel 0-10V analog input</description>
-			<typeNumber>0x3064</typeNumber>
+		<device id="Beckhoff KL3204">
+			<description>4-channel Pt100 input</description>
+			<typeNumber>0x3204</typeNumber>
 			<minFirmwareVersion>0</minFirmwareVersion>
 		</device>
 	</supportedDevices>
 	<properties>
 		<!-- Input -->
-		<memorySize>80</memorySize>
+		<memorySize>128</memorySize>
+		<!-- Output -->
+		<memorySize2>128</memorySize2>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
@@ -274,7 +276,7 @@
 				</physicalInteger>
 			</parameter>
 		</variables>
-		<variables id="analog_input_valueset_1" memoryAddressStart="16">
+		<variables id="analog_input_valueset_1" memoryAddressStart="16" memoryAddressStep="16">
 			<parameter id="LEVEL">
 				<properties>
 					<writeable>false</writeable>
@@ -284,15 +286,15 @@
 				</properties>
 				<logicalDecimal>
 					<defaultValue>0</defaultValue>
-					<minimumValue>0</minimumValue>
-					<maximumValue>32767</maximumValue>
+					<minimumValue>-16384</minimumValue>
+					<maximumValue>16383</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
 		</variables>
-		<variables id="analog_input_valueset_2" memoryAddressStart="32">
+		<variables id="analog_input_valueset_2" memoryAddressStart="32" memoryAddressStep="16">
 			<parameter id="LEVEL">
 				<properties>
 					<writeable>false</writeable>
@@ -302,15 +304,15 @@
 				</properties>
 				<logicalDecimal>
 					<defaultValue>0</defaultValue>
-					<minimumValue>0</minimumValue>
-					<maximumValue>32767</maximumValue>
+					<minimumValue>-16384</minimumValue>
+					<maximumValue>16383</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
 		</variables>
-		<variables id="analog_input_valueset_3" memoryAddressStart="48">
+		<variables id="analog_input_valueset_3" memoryAddressStart="48" memoryAddressStep="16">
 			<parameter id="LEVEL">
 				<properties>
 					<writeable>false</writeable>
@@ -320,15 +322,15 @@
 				</properties>
 				<logicalDecimal>
 					<defaultValue>0</defaultValue>
-					<minimumValue>0</minimumValue>
-					<maximumValue>32767</maximumValue>
+					<minimumValue>-16384</minimumValue>
+					<maximumValue>16383</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
 		</variables>
-		<variables id="analog_input_valueset_4" memoryAddressStart="64">
+		<variables id="analog_input_valueset_4" memoryAddressStart="64" memoryAddressStep="16">
 			<parameter id="LEVEL">
 				<properties>
 					<writeable>false</writeable>
@@ -338,10 +340,10 @@
 				</properties>
 				<logicalDecimal>
 					<defaultValue>0</defaultValue>
-					<minimumValue>0</minimumValue>
-					<maximumValue>32767</maximumValue>
+					<minimumValue>-16384</minimumValue>
+					<maximumValue>16383</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>

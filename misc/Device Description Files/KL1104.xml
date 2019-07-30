@@ -1,14 +1,14 @@
 <homegearDevice version="1">
 	<supportedDevices>
-		<device id="Beckhoff KL1408">
-			<description>8 channel 24V DC digital input</description>
-			<typeNumber>0x1408</typeNumber>
+		<device id="Beckhoff KL1104">
+			<description>4 channel 24V DC digital input</description>
+			<typeNumber>0x1104</typeNumber>
 			<minFirmwareVersion>0</minFirmwareVersion>
 		</device>
 	</supportedDevices>
 	<properties>
 		<!-- Input -->
-		<memorySize>8</memorySize>
+		<memorySize>4</memorySize>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
@@ -18,7 +18,7 @@
 			<configParameters>maint_ch_master--0</configParameters>
 			<variables>maint_ch_values--0</variables>
 		</function>
-		<function channel="1" type="Input" channelCount="8">
+		<function channel="1" type="Input" channelCount="4">
 			<properties/>
 			<configParameters>config</configParameters>
 			<variables>digital_input_valueset</variables>

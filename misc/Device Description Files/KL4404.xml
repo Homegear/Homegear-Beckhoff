@@ -7,7 +7,10 @@
 		</device>
 	</supportedDevices>
 	<properties>
-		<memorySize>80</memorySize>
+		<!-- Input -->
+		<memorySize>128</memorySize>
+		<!-- Output -->
+		<memorySize2>128</memorySize2>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
@@ -142,9 +145,26 @@
 		          <operationType>config</operationType>
 		        </physicalNone>
 			</parameter>
-			<parameter id="ADDRESS">
+			<parameter id="INPUT_ADDRESS">
 		        <properties>
-		          <label>Address (start bit)</label>
+		          <label>Input address (start bit)</label>
+		          <readable>true</readable>
+		          <writeable>false</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<minimumValue>0</minimumValue>
+		        	<maximumValue>4095</maximumValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="OUTPUT_ADDRESS">
+		        <properties>
+		          <label>Output address (start bit)</label>
 		          <readable>true</readable>
 		          <writeable>false</writeable>
 		          <casts>
@@ -252,7 +272,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
@@ -269,7 +289,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
@@ -286,7 +306,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
@@ -303,7 +323,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="STATE">
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>

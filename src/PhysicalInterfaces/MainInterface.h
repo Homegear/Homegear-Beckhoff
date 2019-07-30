@@ -29,6 +29,10 @@ public:
 
 	bool isOpen() { return !_stopped; }
 
+	uint32_t getMessageCounter();
+    std::vector<uint16_t> getReadBuffer();
+    std::vector<uint16_t> getWriteBuffer();
+
 	void setOutputData(std::shared_ptr<MyPacket> packet);
 	void sendPacket(std::shared_ptr<BaseLib::Systems::Packet> packet);
 protected:
@@ -54,7 +58,8 @@ protected:
 	std::mutex _modbusMutex;
 	std::shared_ptr<BaseLib::Modbus> _modbus;
 	Bk9000Info _bk9000Info;
-	std::atomic_bool _outputsEnabled;
+	std::atomic_bool _outputsEnabled{false};
+	std::atomic<uint32_t> _messageCounter{0};
 
 	std::shared_timed_mutex _writeBufferMutex;
 	std::vector<uint16_t> _writeBuffer;
