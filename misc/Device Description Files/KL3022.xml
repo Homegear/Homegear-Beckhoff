@@ -266,8 +266,8 @@
 				</properties>
 				<logicalDecimal>
 					<defaultValue>0</defaultValue>
-					<minimumValue>0</minimumValue>
-					<maximumValue>32767</maximumValue>
+					<minimumValue>4</minimumValue>
+					<maximumValue>20</maximumValue>
 				</logicalDecimal>
 				<physicalNone groupId="CURRENT">
 					<operationType>command</operationType>
@@ -292,8 +292,8 @@
 				</properties>
 				<logicalDecimal>
 					<defaultValue>0</defaultValue>
-					<minimumValue>0</minimumValue>
-					<maximumValue>32767</maximumValue>
+					<minimumValue>4</minimumValue>
+					<maximumValue>20</maximumValue>
 				</logicalDecimal>
 				<physicalNone groupId="CURRENT">
 					<operationType>command</operationType>
