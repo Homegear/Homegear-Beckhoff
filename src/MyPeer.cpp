@@ -634,9 +634,9 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 			std::string name = "LEVEL";
 			BaseLib::PVariable value;
 
-			for(Functions::iterator channelIterator = _rpcDevice->functions.find(1); channelIterator != _rpcDevice->functions.end(); ++channelIterator)
+			for(Functions::iterator functionsIterator = _rpcDevice->functions.find(1); functionsIterator != _rpcDevice->functions.end(); ++functionsIterator)
 			{
-				int32_t index = (channelIterator->first - 1) + channelIterator->second->variables->memoryAddressStart / 16;
+				int32_t index = (functionsIterator->first - 1) + functionsIterator->second->variables->memoryAddressStart / 16;
 				if(index >= (signed)packet.size()) continue;
 				statesGuard.lock();
 				if(packet.at(index) == _states.at(index))
@@ -646,16 +646,22 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 				}
 				statesGuard.unlock();
 
-				parameter = &valuesCentral[channelIterator->first][name];
+				auto channelIterator = valuesCentral.find(functionsIterator->first);
+				if(channelIterator == valuesCentral.end()) continue;
+				auto variableIterator = channelIterator->second.find(name);
+				if(variableIterator == channelIterator->second.end()) continue;
+
+				parameter = &variableIterator->second;
 				if(!parameter->rpcParameter) continue;
 
 				{
 					std::lock_guard<std::mutex> lastDataGuard(_lastDataMutex);
-					if(BaseLib::HelperFunctions::getTime() - _lastData[channelIterator->first] < _intervals[channelIterator->first]) continue;
-					_lastData[channelIterator->first] = BaseLib::HelperFunctions::getTime();
+					if(BaseLib::HelperFunctions::getTime() - _lastData[functionsIterator->first] < _intervals[functionsIterator->first]) continue;
+					_lastData[functionsIterator->first] = BaseLib::HelperFunctions::getTime();
 				}
 
-				LogicalDecimal* levelParameter = (LogicalDecimal*)parameter->rpcParameter->logical.get();
+				auto levelParameter = std::dynamic_pointer_cast<LogicalDecimal>(parameter->rpcParameter->logical);
+			    if(!levelParameter) continue;
 				bool isSigned = levelParameter->minimumValue < 0;
 
 				statesGuard.lock();
@@ -666,20 +672,20 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 				double inputMax = 0;
 				double outputMin = 0;
 				double outputMax = 0;
-				if(_minimumInputValues[channelIterator->first] != 0 || _maximumInputValues[channelIterator->first] != 0)
+				if(_minimumInputValues[functionsIterator->first] != 0 || _maximumInputValues[functionsIterator->first] != 0)
 				{
-					inputMin = _minimumInputValues[channelIterator->first];
-					inputMax = _maximumInputValues[channelIterator->first];
+					inputMin = _minimumInputValues[functionsIterator->first];
+					inputMax = _maximumInputValues[functionsIterator->first];
 				}
 				else
 				{
 					inputMin = levelParameter->minimumValue;
 					inputMax = levelParameter->maximumValue;
 				}
-				if(_minimumOutputValues[channelIterator->first] != 0 || _maximumOutputValues[channelIterator->first] != 0)
+				if(_minimumOutputValues[functionsIterator->first] != 0 || _maximumOutputValues[functionsIterator->first] != 0)
 				{
-					outputMin = _minimumOutputValues[channelIterator->first];
-					outputMax = _maximumOutputValues[channelIterator->first];
+					outputMin = _minimumOutputValues[functionsIterator->first];
+					outputMax = _maximumOutputValues[functionsIterator->first];
 				}
 				else
 				{
@@ -689,7 +695,7 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 
 				double doubleValue = isSigned ? (double)(int16_t)packet[index] : (double)packet[index];
 				doubleValue = BaseLib::Math::scale(BaseLib::Math::clamp(doubleValue, inputMin, inputMax), inputMin, inputMax, outputMin, outputMax);
-				double decimalFactor = BaseLib::Math::Pow10(_decimalPlaces[channelIterator->first]);
+				double decimalFactor = BaseLib::Math::Pow10(_decimalPlaces[functionsIterator->first]);
 				doubleValue = std::round(doubleValue * decimalFactor) / decimalFactor;
 
 				value.reset(new BaseLib::Variable(doubleValue));
@@ -700,18 +706,18 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 
 				if(!value) continue;
 
-				if(!valueKeys[channelIterator->first] || !rpcValues[channelIterator->first])
+				if(!valueKeys[functionsIterator->first] || !rpcValues[functionsIterator->first])
 				{
-					valueKeys[channelIterator->first].reset(new std::vector<std::string>());
-					rpcValues[channelIterator->first].reset(new std::vector<PVariable>());
+					valueKeys[functionsIterator->first].reset(new std::vector<std::string>());
+					rpcValues[functionsIterator->first].reset(new std::vector<PVariable>());
 				}
 
 				if(parameter->databaseId > 0) saveParameter(parameter->databaseId, data);
-				else saveParameter(0, ParameterGroup::Type::Enum::variables, channelIterator->first, name, data);
-				if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(channelIterator->first) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(data) + ".");
+				else saveParameter(0, ParameterGroup::Type::Enum::variables, functionsIterator->first, name, data);
+				if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(functionsIterator->first) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(data) + ".");
 
-				valueKeys[channelIterator->first]->push_back(name);
-				rpcValues[channelIterator->first]->push_back(value);
+				valueKeys[functionsIterator->first]->push_back(name);
+				rpcValues[functionsIterator->first]->push_back(value);
 			}
 		}
 		else
