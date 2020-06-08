@@ -719,7 +719,7 @@ void MyPeer::packetReceived(std::vector<uint16_t>& packet)
 
 				if(parameter.databaseId > 0) saveParameter(parameter.databaseId, parameterData);
 				else saveParameter(0, ParameterGroup::Type::Enum::variables, functionsIterator->first, name, parameterData);
-				if(_bl->debugLevel >= 4) GD::out.printInfo("Info: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(functionsIterator->first) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameterData) + ".");
+				if(_bl->debugLevel >= 6) GD::out.printDebug("Debug: " + name + " of peer " + std::to_string(_peerID) + " with serial number " + _serialNumber + ":" + std::to_string(functionsIterator->first) + " was set to 0x" + BaseLib::HelperFunctions::getHexString(parameterData) + ".");
 
 				valueKeys[functionsIterator->first]->push_back(name);
 				rpcValues[functionsIterator->first]->push_back(parameter.rpcParameter->convertFromPacket(parameterData, parameter.mainRole(), true));
