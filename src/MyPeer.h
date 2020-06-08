@@ -102,6 +102,7 @@ protected:
 	std::map<int32_t, int32_t> _maximumOutputValues;
 
 	std::shared_ptr<BaseLib::Rpc::RpcEncoder> _binaryEncoder;
+    std::shared_ptr<BaseLib::Rpc::RpcDecoder> _binaryDecoder;
 
 	virtual void loadVariables(BaseLib::Systems::ICentral* central, std::shared_ptr<BaseLib::Database::DataTable>& rows);
     virtual void saveVariables();

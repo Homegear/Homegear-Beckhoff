@@ -249,10 +249,18 @@
 			</parameter>
 		</variables>
 		<variables id="analog_input_valueset_1" memoryAddressStart="16" memoryAddressStep="16">
-			<parameter id="LEVEL">
+			<parameter id="CURRENT">
 				<properties>
 					<writeable>false</writeable>
+					<unit>mA</unit>
 					<casts>
+						<round>
+							<decimalPlaces>2</decimalPlaces>
+						</round>
+						<decimalIntegerScale>
+							<offset>-4.0</offset>
+							<factor>2047.9375</factor>
+						</decimalIntegerScale>
 						<rpcBinary/>
 					</casts>
 				</properties>
@@ -261,16 +269,24 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="LEVEL">
+				<physicalNone groupId="CURRENT">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
 		</variables>
 		<variables id="analog_input_valueset_2" memoryAddressStart="32" memoryAddressStep="16">
-			<parameter id="LEVEL">
+			<parameter id="CURRENT">
 				<properties>
 					<writeable>false</writeable>
+					<unit>mA</unit>
 					<casts>
+						<round>
+							<decimalPlaces>2</decimalPlaces>
+						</round>
+						<decimalIntegerScale>
+							<offset>-4.0</offset>
+							<factor>2047.9375</factor>
+						</decimalIntegerScale>
 						<rpcBinary/>
 					</casts>
 				</properties>
@@ -279,7 +295,7 @@
 					<minimumValue>0</minimumValue>
 					<maximumValue>32767</maximumValue>
 				</logicalDecimal>
-				<physicalNone groupId="LEVEL">
+				<physicalNone groupId="CURRENT">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
