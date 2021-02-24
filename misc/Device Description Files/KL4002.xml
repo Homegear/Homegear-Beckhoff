@@ -1,14 +1,16 @@
 <homegearDevice version="1">
 	<supportedDevices>
-		<device id="Beckhoff KS1104">
-			<description>4 channel 24V DC digital input</description>
-			<typeNumber>0x1104</typeNumber>
+		<device id="Beckhoff KL4002">
+			<description>2-channel 0-10V analog output</description>
+			<typeNumber>0x4002</typeNumber>
 			<minFirmwareVersion>0</minFirmwareVersion>
 		</device>
 	</supportedDevices>
 	<properties>
 		<!-- Input -->
-		<memorySize>4</memorySize>
+		<memorySize>32</memorySize>
+		<!-- Output -->
+		<memorySize2>32</memorySize2>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
@@ -18,14 +20,101 @@
 			<configParameters>maint_ch_master--0</configParameters>
 			<variables>maint_ch_values--0</variables>
 		</function>
-		<function channel="1" type="Input" channelCount="4">
-			<properties/>
+		<function channel="1" type="Output" channelCount="1">
+			<properties />
 			<configParameters>config</configParameters>
-			<variables>digital_input_valueset</variables>
+			<variables>analog_output_valueset_1</variables>
+		</function>
+		<function channel="2" type="Output" channelCount="1">
+			<properties />
+			<configParameters>config</configParameters>
+			<variables>analog_output_valueset_2</variables>
 		</function>
 	</functions>
 	<parameterGroups>
-		<configParameters id="config"/>
+		<configParameters id="config">
+			<parameter id="DECIMAL_PLACES">
+				<properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<defaultValue>0</defaultValue>
+		        	<minimumValue>0</minimumValue>
+		        	<maximumValue>6</maximumValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="INPUT_MIN">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<defaultValue>0</defaultValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="INPUT_MAX">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<defaultValue>0</defaultValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="OUTPUT_MIN">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<defaultValue>0</defaultValue>
+		        	<minimumValue>0</minimumValue>
+		        	<maximumValue>32767</maximumValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+			<parameter id="OUTPUT_MAX">
+		        <properties>
+		          <readable>true</readable>
+		          <writeable>true</writeable>
+		          <casts>
+		            <rpcBinary />
+		          </casts>
+		        </properties>
+		        <logicalInteger>
+		        	<defaultValue>0</defaultValue>
+		        	<minimumValue>0</minimumValue>
+		        	<maximumValue>32767</maximumValue>
+		        </logicalInteger>
+		        <physicalNone>
+		          <operationType>config</operationType>
+		        </physicalNone>
+			</parameter>
+		</configParameters>
 		<configParameters id="maint_ch_master--0">
 			<parameter id="NEXT_PEER_ID">
 		        <properties>
@@ -161,21 +250,40 @@
 				</physicalInteger>
 			</parameter>
 		</variables>
-		<variables id="digital_input_valueset">
-			<parameter id="STATE">
+		<variables id="analog_output_valueset_1" memoryAddressStart="16">
+			<parameter id="LEVEL">
 				<properties>
-					<writeable>false</writeable>
 					<casts>
 						<rpcBinary/>
 					</casts>
 				</properties>
-				<logicalBoolean>
-					<defaultValue>false</defaultValue>
-				</logicalBoolean>
-				<physicalNone>
+				<logicalDecimal>
+					<defaultValue>0</defaultValue>
+					<minimumValue>0</minimumValue>
+					<maximumValue>32767</maximumValue>
+				</logicalDecimal>
+				<physicalNone groupId="LEVEL">
+					<operationType>command</operationType>
+				</physicalNone>
+			</parameter>
+		</variables>
+		<variables id="analog_output_valueset_2" memoryAddressStart="32">
+			<parameter id="LEVEL">
+				<properties>
+					<casts>
+						<rpcBinary/>
+					</casts>
+				</properties>
+				<logicalDecimal>
+					<defaultValue>0</defaultValue>
+					<minimumValue>0</minimumValue>
+					<maximumValue>32767</maximumValue>
+				</logicalDecimal>
+				<physicalNone groupId="LEVEL">
 					<operationType>command</operationType>
 				</physicalNone>
 			</parameter>
 		</variables>
 	</parameterGroups>
 </homegearDevice>
+
