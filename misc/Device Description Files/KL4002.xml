@@ -8,9 +8,9 @@
 	</supportedDevices>
 	<properties>
 		<!-- Input -->
-		<memorySize>32</memorySize>
+		<memorySize>64</memorySize>
 		<!-- Output -->
-		<memorySize2>32</memorySize2>
+		<memorySize2>64</memorySize2>
 	</properties>
 	<functions>
 		<function channel="0" type="MAINTENANCE" channelCount="1">
