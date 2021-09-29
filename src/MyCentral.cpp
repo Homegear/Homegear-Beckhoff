@@ -130,7 +130,6 @@ bool MyCentral::onPacketReceived(std::string& senderID, std::shared_ptr<BaseLib:
 		if(_disposing) return false;
 		std::shared_ptr<MyPacket> myPacket(std::dynamic_pointer_cast<MyPacket>(packet));
 		if(!myPacket) return false;
-		if(GD::bl->debugLevel >= 5) _bl->out.printDebug(BaseLib::HelperFunctions::getTimeString(myPacket->getTimeReceived()) + " New data received.");
 
 		std::vector<std::shared_ptr<MyPeer>> peers;
 		{
