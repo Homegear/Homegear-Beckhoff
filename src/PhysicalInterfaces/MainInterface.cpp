@@ -269,7 +269,7 @@ void MainInterface::listen()
 					}
 
 					_lastPacketSent = BaseLib::HelperFunctions::getTime();
-					_lastPacketReceived = _lastPacketSent;
+					_lastPacketReceived = _lastPacketSent.load();
                     std::shared_lock<std::shared_timed_mutex> readBufferGuard(_readBufferMutex);
 					if(!std::equal(readBuffer.begin(), readBuffer.end(), _readBuffer.begin()))
 					{
